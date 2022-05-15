@@ -32,6 +32,7 @@ from coco_utils import get_coco, get_coco_kp
 from engine import train_one_epoch, evaluate
 from group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_groups
 from cellDataset import CSVDataset
+from my_retinanet import retinanet_resnet50_fpn
 import transforms as T
 
 try:
@@ -215,15 +216,7 @@ def main(args):
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers}
-    if "rcnn" in args.model:
-        if args.rpn_score_thresh is not None:
-            kwargs["rpn_score_thresh"] = args.rpn_score_thresh
-    if not args.prototype:
-        model = torchvision.models.detection.__dict__[args.model](
-            pretrained=args.pretrained, num_classes=num_classes, **kwargs
-        )
-    else:
-        model = prototype.models.detection.__dict__[args.model](weights=args.weights, num_classes=num_classes, **kwargs)
+    model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, **kwargs)
     model.to(device)
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

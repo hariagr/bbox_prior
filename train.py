@@ -31,7 +31,7 @@ import utils
 from coco_utils import get_coco, get_coco_kp
 from engine import train_one_epoch, evaluate
 from group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_groups
-from UMIDDataset import PennFudanDataset
+from cellDataset import CSVDataset
 import transforms as T
 
 try:
@@ -68,6 +68,9 @@ def get_args_parser(add_help=True):
 
     parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
     parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
+    parser.add_argument("--train-file", default="train.csv", type=str, help="annotations for training")
+    parser.add_argument("--test-file", default="test.csv", type=str, help="annotations for testing")
+
     parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
@@ -178,17 +181,15 @@ def main(args):
     #dataset, num_classes = get_dataset(args.dataset, "train", get_transform(True, args), args.data_path)
     #dataset_test, _ = get_dataset(args.dataset, "val", get_transform(False, args), args.data_path)
 
-    dataset = PennFudanDataset(args.data_path,
-                  transforms=T.Compose([
-		                T.ToTensor()]))
-    dataset_test = PennFudanDataset(args.data_path)
+    # dataset = PennFudanDataset(args.data_path,
+    #               transforms=T.Compose([
+	# 	                T.ToTensor()]))
+    # dataset_test = PennFudanDataset(args.data_path)
 
-    #dataset = cellDataset(train_file, points_file, class_list, gclass_list, transform=transforms=T.Compose([
-	#	                T.ToTensor()]))
-    #dataset_test = cellDataset(train_file, points_file, class_list, gclass_list, transform=transforms=T.Compose([
-	#	                T.ToTensor()]))
+    dataset = CSVDataset(os.path.join('data/annotations/', args.train_file), transform=T.Compose([T.ToTensor()]))
+    dataset_test = CSVDataset(os.path.join('data/annotations/', args.test_file) , transform=T.Compose([T.ToTensor()]))
 
-    num_classes = 1
+    num_classes = 3
 
     print("Creating data loaders")
     if args.distributed:

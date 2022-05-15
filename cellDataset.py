@@ -19,7 +19,13 @@ import pandas as pd
 
 class CSVDataset(Dataset):
     """CSV dataset."""
-    def __init__(self, train_file, points_file, class_list, gclass_list, missedlabels=True, transform=None, weights=False):
+    def __init__(self, train_file,
+                 points_file=None,
+                 class_list='data/annotations/classmaps.csv',
+                 gclass_list='data/annotations/groupclassmaps.csv',
+                 missedlabels=True,
+                 transform=None,
+                 weights=False):
         """
         Args:
             train_file (string): CSV file with training annotations
@@ -31,7 +37,7 @@ class CSVDataset(Dataset):
         self.class_list = class_list
         self.gclass_list = gclass_list
         self.transform = transform
-        self.image_folder = 'images/'
+        self.image_folder = 'data/images/'
         self.missedlabels = missedlabels
         self.mclass = 'missedlabel'
         self.weights = weights
@@ -174,7 +180,13 @@ class CSVDataset(Dataset):
         boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels, \
                             weights, pweights, weights_imcls = self.load_annotations(idx)
 
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+
         target = {}
+        target["image_id"] = torch.tensor([idx])
+        target["area"] = area
+        target["iscrowd"] = torch.zeros_like(labels)
+
         target["boxes"] = boxes
         target["labels"] = labels
         target["points"] = points
@@ -192,7 +204,7 @@ class CSVDataset(Dataset):
         #target["weights_imcls"] = weights_imcls
         #target["class_weights"] = torch.tensor([self.weights_imcls['pus'], self.weights_imcls['rbc'], self.weights_imcls['ep']])
         #target["class_weights"] = target["class_weights"]/sum(target["class_weights"])
-        image = self.transform(img)
+        image, target = self.transform(img, target)
 
         return image, target
 

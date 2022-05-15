@@ -290,7 +290,7 @@ def main(args):
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
         # evaluate after every epoch
-        if epoch % args.eval_freq == 0:
+        if (epoch + 1) % args.eval_freq == 0:
             # coco evaluation
             evaluate(model, data_loader_val, device=device)
             # our evaluation

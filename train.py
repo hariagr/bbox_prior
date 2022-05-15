@@ -34,6 +34,7 @@ from group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_group
 from cellDataset import CSVDataset
 from my_retinanet import retinanet_resnet50_fpn
 import transforms as T
+from eval_mAP_F1 import evaluate as eval_mAP_F1
 
 try:
     from torchvision import prototype
@@ -290,7 +291,10 @@ def main(args):
 
         # evaluate after every epoch
         if epoch % args.eval_freq == 0:
+            # coco evaluation
             evaluate(model, data_loader_val, device=device)
+            # our evaluation
+            eval_mAP_F1(dataset_val, model, count=epoch)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

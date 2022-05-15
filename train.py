@@ -189,8 +189,7 @@ def main(args):
 
     dataset = CSVDataset(os.path.join('data/annotations/', args.train_file), transform=T.Compose([T.ToTensor()]))
     dataset_val = CSVDataset(os.path.join('data/annotations/', args.val_file), transform=T.Compose([T.ToTensor()]))
-
-    num_classes = 3
+    num_classes = dataset.num_classes()
 
     print("Creating data loaders")
     if args.distributed:
@@ -288,7 +287,7 @@ def main(args):
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
         # evaluate after every epoch
-        if torch.mod(epoch, args.eval_freq) == 0:
+        if torch.fmod(epoch, args.eval_freq) == 0:
             evaluate(model, data_loader_val, device=device)
 
     total_time = time.time() - start_time

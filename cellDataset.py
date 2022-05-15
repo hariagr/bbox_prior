@@ -32,7 +32,6 @@ class CSVDataset(Dataset):
         self.image_folder = 'data/images/'
         self.missedlabels = missedlabels
         self.mclass = 'missedlabel'
-        self.weights = weights
 
         # parse the provided class file
         try:
@@ -53,7 +52,6 @@ class CSVDataset(Dataset):
                 self.gclasses = self.load_classes(csv.reader(file, delimiter=','))  # dict: classes[pus]=0
             for key, value in self.gclasses.items():  # key=pus, value=0
                 self.glabels[value] = key  # labels[0]=c-pus, labels[1]=c-rbc, labels[2]=c-ep
-
         except:
             warnings.warn('invalid Group CSV class file. Running model without group annotations!!')
 

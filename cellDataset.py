@@ -1,21 +1,13 @@
 import torch
 from six import raise_from
 from torch.utils.data import Dataset
-#from torchvision import transforms
-#from torch.utils.data.sampler import Sampler
-
 import sys
 from PIL import Image
-#import random
 import numpy as np
 import csv
 import warnings
 import pandas as pd
 
-#import skimage.io
-#import skimage.transform
-#import skimage.color
-#import skimage
 
 class CSVDataset(Dataset):
     """CSV dataset."""
@@ -41,8 +33,6 @@ class CSVDataset(Dataset):
         self.missedlabels = missedlabels
         self.mclass = 'missedlabel'
         self.weights = weights
-        #self.priors = {0: [], 1: [], 2: []}
-        #self.log_priors = {0: [], 1: [], 2: []}
 
         # parse the provided class file
         try:
@@ -64,13 +54,6 @@ class CSVDataset(Dataset):
             for key, value in self.gclasses.items():  # key=pus, value=0
                 self.glabels[value] = key  # labels[0]=c-pus, labels[1]=c-rbc, labels[2]=c-ep
 
-            # missed level class
-            #self.mclass = self.glabels[len(self.labels)]
-            #self.glabels = {i:self.glabels[i] for i in self.glabels if i!=len(self.labels)}
-            #self.gclasses = {i:self.gclasses[i] for i in self.gclasses if i!=len(self.labels)}
-
-            #print(self.glabels)
-            #print(self.mclass)
         except:
             warnings.warn('invalid Group CSV class file. Running model without group annotations!!')
 
@@ -195,15 +178,11 @@ class CSVDataset(Dataset):
         target["glabels"] = glabels
         target["mboxes"] = mboxes
         target["mlabels"] = mlabels
-        #target["weights"] = weights
-        #target["pweights"] = pweights
+
         target["objects_per_class"] = self.objects_per_class
         target["det_boxes_per_class"] = self.det_boxes_per_class
         target["stoc_boxes_per_class"] = self.stoc_boxes_per_class
         target["image_name"] = torch.tensor([int(self.image_index_to_image_file(idx).split(".jpg")[0])])
-        #target["weights_imcls"] = weights_imcls
-        #target["class_weights"] = torch.tensor([self.weights_imcls['pus'], self.weights_imcls['rbc'], self.weights_imcls['ep']])
-        #target["class_weights"] = target["class_weights"]/sum(target["class_weights"])
         image, target = self.transform(img, target)
 
         return image, target

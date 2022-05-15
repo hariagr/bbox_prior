@@ -69,7 +69,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
     parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
     parser.add_argument("--train-file", default="train.csv", type=str, help="annotations for training")
-    parser.add_argument("--test-file", default="test.csv", type=str, help="annotations for testing")
+    parser.add_argument("--val-file", default="val.csv", type=str, help="annotations for validation")
 
     parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
@@ -187,17 +187,17 @@ def main(args):
     # dataset_test = PennFudanDataset(args.data_path)
 
     dataset = CSVDataset(os.path.join('data/annotations/', args.train_file), transform=T.Compose([T.ToTensor()]))
-    dataset_test = CSVDataset(os.path.join('data/annotations/', args.test_file) , transform=T.Compose([T.ToTensor()]))
+    dataset_val = CSVDataset(os.path.join('data/annotations/', args.val_file), transform=T.Compose([T.ToTensor()]))
 
     num_classes = 3
 
     print("Creating data loaders")
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-        test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(dataset_val)
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
-        test_sampler = torch.utils.data.SequentialSampler(dataset_test)
+        val_sampler = torch.utils.data.SequentialSampler(dataset_val)
 
     if args.aspect_ratio_group_factor >= 0:
         group_ids = create_aspect_ratio_groups(dataset, k=args.aspect_ratio_group_factor)
@@ -209,8 +209,8 @@ def main(args):
         dataset, batch_sampler=train_batch_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
     )
 
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, sampler=test_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+    data_loader_val = torch.utils.data.DataLoader(
+        dataset_val, batch_size=1, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
     )
 
     print("Creating model")
@@ -260,7 +260,7 @@ def main(args):
             scaler.load_state_dict(checkpoint["scaler"])
 
     if args.test_only:
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_val, device=device)
         return
 
     print("Start training")
@@ -287,7 +287,7 @@ def main(args):
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
         # evaluate after every epoch
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_val, device=device)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

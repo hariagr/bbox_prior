@@ -244,7 +244,7 @@ def main(args):
     elif args.lr_scheduler == "cosineannealinglr":
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     elif args.lr_scheduler == 'reducelronplateau':
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1)
     else:
         raise RuntimeError(
             f"Invalid lr scheduler '{args.lr_scheduler}'. Only ReduceLROnPlateau, MultiStepLR and CosineAnnealingLR are supported."

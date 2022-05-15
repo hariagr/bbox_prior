@@ -112,6 +112,7 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
     )
+    parser.add_argument("--eval-freq", default=5, type=int, help="evaluation frequency")
     parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
@@ -287,7 +288,8 @@ def main(args):
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
         # evaluate after every epoch
-        evaluate(model, data_loader_val, device=device)
+        if torch.mod(epoch, args.eval_freq) == 0:
+            evaluate(model, data_loader_val, device=device)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

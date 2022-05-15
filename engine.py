@@ -49,7 +49,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, sc
             scaler.update()
         else:
             losses.backward()
-            optimizer.step()
+            #optimizer.step()
 
         if lr_scheduler is not None:
             lr_scheduler.step()

@@ -287,7 +287,7 @@ def main(args):
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
         # evaluate after every epoch
-        if torch.fmod(epoch, args.eval_freq) == 0:
+        if epoch % args.eval_freq == 0:
             evaluate(model, data_loader_val, device=device)
 
     total_time = time.time() - start_time

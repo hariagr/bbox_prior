@@ -243,9 +243,11 @@ def main(args):
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_steps, gamma=args.lr_gamma)
     elif args.lr_scheduler == "cosineannealinglr":
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    elif args.lr_scheduler == 'reducelronplateau':
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
     else:
         raise RuntimeError(
-            f"Invalid lr scheduler '{args.lr_scheduler}'. Only MultiStepLR and CosineAnnealingLR are supported."
+            f"Invalid lr scheduler '{args.lr_scheduler}'. Only ReduceLROnPlateau, MultiStepLR and CosineAnnealingLR are supported."
         )
 
     if args.resume:
@@ -266,8 +268,11 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, scaler)
-        lr_scheduler.step()
+        metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, scaler)
+        if args.lr_scheduler == 'reducelronplateau':
+            lr_scheduler.step(metric_logger.meters.get('loss').value)
+        else:
+            lr_scheduler.step()
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),

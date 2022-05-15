@@ -201,11 +201,18 @@ class RetinaNetRegressionHead(nn.Module):
             # compute the regression targets
             target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
 
+            # class imbalance weighing
+            labels_per_image = targets_per_image['labels'][matched_idxs_per_image]
+            bl_det_weights = self.bl_weights[labels_per_image]
+            bl_det_weights = bl_det_weights[foreground_idxs_per_image]
+            bl_det_weights = torch.reshape(bl_det_weights, (-1, 1))  # class imbalance weights
+
             # compute the loss
-            losses.append(
-                torch.nn.functional.l1_loss(bbox_regression_per_image, target_regression, reduction="sum")
-                / max(1, num_foreground)
-            )
+            det_loss_per_image = torch.nn.functional.l1_loss(bbox_regression_per_image, target_regression,
+                                                             size_average=False, reduce=False, reduction='none')
+            det_loss_per_image = bl_det_weights * det_loss_per_image
+            loss_per_image = sum(sum(det_loss_per_image)) / max(1, num_foreground)
+            losses.append(loss_per_image)
 
         return _sum(losses) / max(1, len(targets))
 

@@ -1,21 +1,21 @@
 import torch
 from six import raise_from
 from torch.utils.data import Dataset
-from torchvision import transforms
-from torch.utils.data.sampler import Sampler
+#from torchvision import transforms
+#from torch.utils.data.sampler import Sampler
 
 import sys
 from PIL import Image
-import random
+#import random
 import numpy as np
 import csv
 import warnings
 import pandas as pd
 
-import skimage.io
-import skimage.transform
-import skimage.color
-import skimage
+#import skimage.io
+#import skimage.transform
+#import skimage.color
+#import skimage
 
 class CSVDataset(Dataset):
     """CSV dataset."""

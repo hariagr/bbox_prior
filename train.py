@@ -31,7 +31,7 @@ import utils
 from coco_utils import get_coco, get_coco_kp
 from engine import train_one_epoch, evaluate
 from group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_groups
-from PennFudanDataset import PennFudanDataset
+from UMIDDataset import PennFudanDataset
 import transforms as T
 
 try:
@@ -182,6 +182,12 @@ def main(args):
                   transforms=T.Compose([
 		                T.ToTensor()]))
     dataset_test = PennFudanDataset(args.data_path)
+
+    #dataset = cellDataset(train_file, points_file, class_list, gclass_list, transform=transforms=T.Compose([
+	#	                T.ToTensor()]))
+    #dataset_test = cellDataset(train_file, points_file, class_list, gclass_list, transform=transforms=T.Compose([
+	#	                T.ToTensor()]))
+
     num_classes = 1
 
     print("Creating data loaders")

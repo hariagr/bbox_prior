@@ -161,6 +161,9 @@ def get_args_parser(add_help=True):
     # Mixed precision training parameters
     parser.add_argument("--amp", action="store_true", help="Use torch.cuda.amp for mixed precision training")
 
+    # balance classes in the loss function
+    parser.add_argument("--balance", action="store_true", help="handle class imbalance problem")
+
     return parser
 
 
@@ -214,8 +217,14 @@ def main(args):
         dataset_val, batch_size=1, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
     )
 
+    if args.balance:
+        bl_weights = dataset.bl_weights
+    else:
+        bl_weights = torch.ones(num_classes)
+    print(f"Setting weights {bl_weights} for handling class imbalance problem")
+
     print("Creating model")
-    kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers}
+    kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, **kwargs)
     model.to(device)
     if args.distributed and args.sync_bn:

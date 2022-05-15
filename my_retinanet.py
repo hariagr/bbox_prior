@@ -40,10 +40,10 @@ class RetinaNetHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes):
+    def __init__(self, in_channels, num_anchors, num_classes, bl_weights):
         super().__init__()
-        self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes)
-        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors)
+        self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes, bl_weights)
+        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights)
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Dict[str, Tensor]
@@ -67,7 +67,7 @@ class RetinaNetClassificationHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes, prior_probability=0.01):
+    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, prior_probability=0.01):
         super().__init__()
 
         conv = []
@@ -87,6 +87,7 @@ class RetinaNetClassificationHead(nn.Module):
 
         self.num_classes = num_classes
         self.num_anchors = num_anchors
+        self.bl_weights  = bl_weights
 
         # This is to fix using det_utils.Matcher.BETWEEN_THRESHOLDS in TorchScript.
         # TorchScript doesn't support class attributes.
@@ -115,14 +116,14 @@ class RetinaNetClassificationHead(nn.Module):
             valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
 
             # compute the classification loss
-            losses.append(
-                sigmoid_focal_loss(
-                    cls_logits_per_image[valid_idxs_per_image],
-                    gt_classes_target[valid_idxs_per_image],
-                    reduction="sum",
-                )
-                / max(1, num_foreground)
+            loss_per_image = sigmoid_focal_loss(
+                cls_logits_per_image[valid_idxs_per_image],
+                gt_classes_target[valid_idxs_per_image],
+                reduction='none',
             )
+            loss_per_image = loss_per_image * self.bl_weights
+            loss_per_image = loss_per_image.sum()
+            losses.append(loss_per_image / max(1, num_foreground))
 
         return _sum(losses) / len(targets)
 
@@ -158,7 +159,7 @@ class RetinaNetRegressionHead(nn.Module):
         "box_coder": det_utils.BoxCoder,
     }
 
-    def __init__(self, in_channels, num_anchors):
+    def __init__(self, in_channels, num_anchors, bl_weights):
         super().__init__()
 
         conv = []
@@ -177,6 +178,7 @@ class RetinaNetRegressionHead(nn.Module):
                 torch.nn.init.zeros_(layer.bias)
 
         self.box_coder = det_utils.BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
+        self.bl_weights = bl_weights
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Tensor
@@ -335,6 +337,8 @@ class RetinaNet(nn.Module):
         fg_iou_thresh=0.5,
         bg_iou_thresh=0.4,
         topk_candidates=1000,
+        # loss parameters
+        bl_weights=None
     ):
         super().__init__()
         _log_api_usage_once(self)
@@ -356,7 +360,7 @@ class RetinaNet(nn.Module):
         self.anchor_generator = anchor_generator
 
         if head is None:
-            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes)
+            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights)
         self.head = head
 
         if proposal_matcher is None:

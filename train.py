@@ -218,9 +218,9 @@ def main(args):
     )
 
     if args.balance:
-        bl_weights = dataset.bl_weights
+        bl_weights = dataset.bl_weights.to(device)
     else:
-        bl_weights = torch.ones(num_classes)
+        bl_weights = torch.ones(num_classes).to(device)
     print(f"Setting weights {bl_weights} for handling class imbalance problem")
 
     print("Creating model")

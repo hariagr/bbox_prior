@@ -105,7 +105,7 @@ class CSVDataset(Dataset):
 
             # self.stoc_boxes_per_class = torch.tensor([num_pus2, num_rbc2, num_ep2])
         else:
-             num_of_points = np.empty(self.num_classes(), dtype=int)
+             num_of_points = np.zeros(self.num_classes(), dtype=int)
 
         self.objects_per_class = torch.tensor(num_of_points + num_of_boxes)  # includes box and point annotated cells
         self.det_boxes_per_class = torch.tensor(num_of_boxes)

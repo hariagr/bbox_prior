@@ -295,7 +295,7 @@ def main(args):
             # coco evaluation
             evaluate(model, data_loader_val, device=device)
             # our evaluation
-            eval_mAP_F1(dataset_val, model, count=epoch)
+            # eval_mAP_F1(dataset_val, model, count=epoch)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

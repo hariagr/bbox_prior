@@ -208,7 +208,7 @@ def main(args):
         group_ids = create_aspect_ratio_groups(dataset, k=args.aspect_ratio_group_factor)
         train_batch_sampler = GroupedBatchSampler(train_sampler, group_ids, args.batch_size)
     else:
-        train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, args.batch_size, drop_last=True)
+        train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, args.batch_size, drop_last=False)
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_sampler=train_batch_sampler, num_workers=args.workers, collate_fn=utils.collate_fn

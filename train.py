@@ -201,8 +201,8 @@ def main(args):
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         val_sampler = torch.utils.data.distributed.DistributedSampler(dataset_val)
     else:
-        #train_sampler = torch.utils.data.RandomSampler(dataset)
-        train_sampler = torch.utils.data.SequentialSampler(dataset)
+        train_sampler = torch.utils.data.RandomSampler(dataset)
+        #train_sampler = torch.utils.data.SequentialSampler(dataset)
         val_sampler = torch.utils.data.SequentialSampler(dataset_val)
 
     if args.aspect_ratio_group_factor >= 0:

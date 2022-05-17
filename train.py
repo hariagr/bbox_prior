@@ -202,7 +202,6 @@ def main(args):
         val_sampler = torch.utils.data.distributed.DistributedSampler(dataset_val)
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
-        #train_sampler = torch.utils.data.SequentialSampler(dataset)
         val_sampler = torch.utils.data.SequentialSampler(dataset_val)
 
     if args.aspect_ratio_group_factor >= 0:
@@ -273,10 +272,10 @@ def main(args):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, scaler)
-        #if args.lr_scheduler == 'reducelronplateau':
-        #    lr_scheduler.step(metric_logger.meters.get('loss').value)
-        #else:
-        #    lr_scheduler.step()
+        if args.lr_scheduler == 'reducelronplateau':
+            lr_scheduler.step(metric_logger.meters.get('loss').value)
+        else:
+            lr_scheduler.step()
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),

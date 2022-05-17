@@ -195,7 +195,7 @@ def evaluate(
         max_detections=900,
         save_path=None,
         csv_path='eval_metrics',
-        text_file_path='metrics.txt',
+        text_file_path=None,
         count=1,
         missedLabels=False,
         ret=0
@@ -327,7 +327,7 @@ def evaluate(
                                                                         true_positives[-1], false_positives[-1],
                                                                         num_ml_detections))
 
-        if text_file is not None:
+        if text_file_path is not None:
             with open(text_file_path, "a") as text_file:
                 text_file.write("\nEpochs {}:\n".format(count))
                 text_file.write('{} - Ground Truths: {}\n'.format(generator.labels[label], num_annotations))
@@ -361,10 +361,11 @@ def evaluate(
 
         print(df2.reset_index(drop=True).to_string(
             formatters={'Prec': '{:8.2f}'.format, 'Recall': '{:8.2f}'.format, 'F1': '{:8.2f}'.format}))
-        with open(text_file_path, "a") as text_file:
-            text_file.write(" \n")
-            text_file.write(df2.reset_index(drop=True).to_string(
-                formatters={'Prec': '{:8.2f}'.format, 'Recall': '{:8.2f}'.format, 'F1': '{:8.2f}'.format}))
+        if text_file_path is not None:
+            with open(text_file_path, "a") as text_file:
+                text_file.write(" \n")
+                text_file.write(df2.reset_index(drop=True).to_string(
+                    formatters={'Prec': '{:8.2f}'.format, 'Recall': '{:8.2f}'.format, 'F1': '{:8.2f}'.format}))
 
         if ret:
             df2.set_index('score', inplace=True)
@@ -397,7 +398,7 @@ def evaluate(
         #         writefile1.writerow(line)
 
     print('\nmAP:')
-    if text_file is not None:
+    if text_file_path is not None:
         with open(text_file_path, "a") as text_file:
             text_file.write("\nmAP:\n")
             for label in range(generator.num_classes()):

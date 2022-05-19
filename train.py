@@ -35,6 +35,7 @@ from cellDataset import CSVDataset
 from my_retinanet import retinanet_resnet50_fpn
 import transforms as T
 from eval_mAP_F1 import evaluate as eval_mAP_F1
+from target_normalization import cal_tnorm_weights
 
 try:
     from torchvision import prototype
@@ -99,7 +100,7 @@ def get_args_parser(add_help=True):
         dest="weight_decay",
     )
     parser.add_argument(
-        "--lr-scheduler", default="multisteplr", type=str, help="name of lr scheduler (default: multisteplr)"
+        "--lr-scheduler", default="reducelronplateau", type=str, help="name of lr scheduler (default: reducelronplateau)"
     )
     parser.add_argument(
         "--lr-step-size", default=8, type=int, help="decrease lr every step-size epochs (multisteplr scheduler only)"
@@ -162,8 +163,11 @@ def get_args_parser(add_help=True):
     # Mixed precision training parameters
     parser.add_argument("--amp", action="store_true", help="Use torch.cuda.amp for mixed precision training")
 
-    # balance classes in the loss function
+    # balance class frequency in the loss function
     parser.add_argument("--balance", action="store_true", help="handle class imbalance problem")
+
+    # target normalization
+    parser.add_argument("--target-normalization", action="store_true", help="normalize the bounding box offset such that std(offset) = 1")
 
     return parser
 
@@ -220,14 +224,19 @@ def main(args):
 
     if args.balance:
         bl_weights = dataset.bl_weights.to(device)
+        print(f"Setting weights {bl_weights} for handling class imbalance problem")
     else:
         bl_weights = torch.ones(num_classes).to(device)
-    print(f"Setting weights {bl_weights} for handling class imbalance problem")
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, **kwargs)
     model.to(device)
+
+    if args.target_normalization:
+        print('Calculating target normalization weights')
+        model = cal_tnorm_weights(model, data_loader, device)
+
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 

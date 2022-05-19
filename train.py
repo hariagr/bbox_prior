@@ -235,7 +235,7 @@ def main(args):
 
     if args.target_normalization:
         print('Calculating target normalization weights')
-        model = cal_tnorm_weights(model, data_loader_val, device)
+        model = cal_tnorm_weights(model, data_loader, device)
 
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

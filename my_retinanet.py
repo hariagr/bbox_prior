@@ -207,10 +207,10 @@ class RetinaNetRegressionHead(nn.Module):
                 print('start')
                 self.target_normalization['x'] = self.target_normalization['x'] + torch.sum(target_regression, 0)
                 self.target_normalization['x2'] = self.target_normalization['x2'] + torch.sum(torch.pow(target_regression, 2), 0)
-                self.target_normalization['num'] = self.target_normalization['num'] + num_foreground
                 print('end')
+                self.target_normalization['num'] = self.target_normalization['num'] + num_foreground
                 continue
-            
+
             # class imbalance weighing
             bl_det_weights = self.bl_weights[targets_per_image['labels'][matched_idxs_per_image[foreground_idxs_per_image]]].reshape((-1, 1))
 

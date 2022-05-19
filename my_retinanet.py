@@ -206,8 +206,8 @@ class RetinaNetRegressionHead(nn.Module):
             if self.cal_tnorm_weights:
                 print('start')
                 self.target_normalization['x'] = self.target_normalization['x'] + torch.sum(target_regression, 0)
-                self.target_normalization['x2'] = self.target_normalization['x2'] + torch.sum(torch.pow(target_regression, 2), 0)
                 print('end')
+                self.target_normalization['x2'] = self.target_normalization['x2'] + torch.sum(torch.pow(target_regression, 2), 0)
                 self.target_normalization['num'] = self.target_normalization['num'] + num_foreground
                 continue
 

@@ -204,7 +204,11 @@ class RetinaNetRegressionHead(nn.Module):
             target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
 
             if self.cal_tnorm_weights:
-                print('start')
+                print(target_regression.device)
+                a = torch.sum(target_regression, 0)
+                print(a.device)
+                print(self.target_normalization['x'].device)
+                
                 self.target_normalization['x'] = self.target_normalization['x'] + torch.sum(target_regression, 0)
                 print('end')
                 self.target_normalization['x2'] = self.target_normalization['x2'] + torch.sum(torch.pow(target_regression, 2), 0)

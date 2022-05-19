@@ -180,7 +180,7 @@ class RetinaNetRegressionHead(nn.Module):
         self.box_coder = det_utils.BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
         self.bl_weights = bl_weights
         self.cal_tnorm_weights = False
-        self.target_normalization = {'x': torch.zeros(4), 'x2': torch.zeros(4), 'num': 0}
+        self.target_normalization = {'x': torch.zeros(4).to(bl_weights.device), 'x2': torch.zeros(4).to(bl_weights.device), 'num': 0}
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Tensor
@@ -204,13 +204,7 @@ class RetinaNetRegressionHead(nn.Module):
             target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
 
             if self.cal_tnorm_weights:
-                print(target_regression.device)
-                a = torch.sum(target_regression, 0)
-                print(a.device)
-                print(self.target_normalization['x'].device)
-                
                 self.target_normalization['x'] = self.target_normalization['x'] + torch.sum(target_regression, 0)
-                print('end')
                 self.target_normalization['x2'] = self.target_normalization['x2'] + torch.sum(torch.pow(target_regression, 2), 0)
                 self.target_normalization['num'] = self.target_normalization['num'] + num_foreground
                 continue

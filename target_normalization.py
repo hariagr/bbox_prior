@@ -5,8 +5,6 @@ def cal_tnorm_weights(model, dataloader, device):
 
     model.head.regression_head.cal_tnorm_weights = True
     model.train()
-
-
     for images, targets in dataloader:
         try:
             images = list(image.to(device) for image in images)

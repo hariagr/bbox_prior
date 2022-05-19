@@ -233,6 +233,8 @@ def main(args):
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, **kwargs)
     model.to(device)
 
+    print(model.head.regression_head.target_normalization['x'].device)
+    
     if args.target_normalization:
         print('Calculating target normalization weights')
         model = cal_tnorm_weights(model, data_loader, device)

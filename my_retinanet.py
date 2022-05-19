@@ -653,8 +653,8 @@ def retinanet_resnet50_fpn(
         # no need to download the backbone if pretrained is set
         pretrained_backbone = False
 
-    #backbone = resnet50(pretrained=pretrained_backbone, progress=progress, norm_layer=misc_nn_ops.FrozenBatchNorm2d)
-    backbone = resnet50(pretrained=pretrained_backbone, progress=progress)
+    backbone = resnet50(pretrained=pretrained_backbone, progress=progress, norm_layer=misc_nn_ops.FrozenBatchNorm2d)
+    #backbone = resnet50(pretrained=pretrained_backbone, progress=progress)
     # skip P2 because it generates too many anchors (according to their paper)
     backbone = _resnet_fpn_extractor(
         backbone, trainable_backbone_layers, returned_layers=[2, 3, 4], extra_blocks=LastLevelP6P7(256, 256)

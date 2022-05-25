@@ -36,6 +36,7 @@ from my_retinanet import retinanet_resnet50_fpn
 import transforms as T
 from eval_mAP_F1 import evaluate as eval_mAP_F1
 from target_normalization import cal_tnorm_weights
+from bbox_priors import cal_bbox_priors
 
 try:
     from torchvision import prototype
@@ -71,7 +72,8 @@ def get_args_parser(add_help=True):
 
     parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
     parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
-    parser.add_argument("--train-file", default="train.csv", type=str, help="annotations for training")
+    parser.add_argument("--train-file", default="train.csv", type=str, help="box annotations for training")
+    parser.add_argument("--train-points-file", default=None, type=str, help="point annotations for training")
     parser.add_argument("--val-file", default="val.csv", type=str, help="annotations for validation")
 
     parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
@@ -120,13 +122,13 @@ def get_args_parser(add_help=True):
     parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
     parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
-    parser.add_argument("--aspect-ratio-group-factor", default=3, type=int)
+    parser.add_argument("--aspect-ratio-group-factor", default=-1, type=int)
     parser.add_argument("--rpn-score-thresh", default=None, type=float, help="rpn score threshold for faster-rcnn")
     parser.add_argument(
         "--trainable-backbone-layers", default=None, type=int, help="number of trainable layers of backbone"
     )
     parser.add_argument(
-        "--data-augmentation", default="hflip", type=str, help="data augmentation policy (default: hflip)"
+        "--data-augmentation", default="None", type=str, help="data augmentation policy (default: hflip)"
     )
     parser.add_argument(
         "--sync-bn",
@@ -167,7 +169,11 @@ def get_args_parser(add_help=True):
     parser.add_argument("--balance", action="store_true", help="handle class imbalance problem")
 
     # target normalization
-    parser.add_argument("--target-normalization", action="store_true", help="normalize the bounding box offset such that std(offset) = 1")
+    parser.add_argument(
+        "--target-normalization",
+        action="store_true",
+        help="normalize the bounding box offset such that std(offset) = 1",
+    )
 
     return parser
 
@@ -196,7 +202,10 @@ def main(args):
 	# 	                T.ToTensor()]))
     # dataset_test = PennFudanDataset(args.data_path)
 
-    dataset = CSVDataset(os.path.join('data/annotations/', args.train_file), transform=T.Compose([T.ToTensor()]))
+    print("Initializing training and validation dataset classes")
+    train_boxes_file = os.path.join('data/annotations/', args.train_file)
+    train_points_file = os.path.join('data/annotations/', args.train_points_file)
+    dataset = CSVDataset(train_boxes_file, points_file=train_points_file, transform=T.Compose([T.ToTensor()]))
     dataset_val = CSVDataset(os.path.join('data/annotations/', args.val_file), transform=T.Compose([T.ToTensor()]))
     num_classes = dataset.num_classes()
 
@@ -237,6 +246,12 @@ def main(args):
         print('Calculating target normalization weights')
         model = cal_tnorm_weights(model, data_loader, device)
 
+    if args.train_points_file is not None:
+        print('Calculating box priors')
+        model = cal_bbox_priors(model, data_loader, device)
+
+    exit()
+    
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 

@@ -17,8 +17,7 @@ from torchvision.models.detection import _utils as det_utils
 from torchvision.models.detection._utils import overwrite_eps
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import _resnet_fpn_extractor, _validate_trainable_layers
-from torchvision.models.detection.transform import GeneralizedRCNNTransform
-
+from GeneralizedRCNNTransform import GeneralizedRCNNTransform
 
 __all__ = ["RetinaNet", "retinanet_resnet50_fpn"]
 
@@ -508,13 +507,14 @@ class RetinaNet(nn.Module):
 
         if self.training:
             assert targets is not None
-            for target in targets:
-                boxes = target["boxes"]
-                if isinstance(boxes, torch.Tensor):
-                    if len(boxes.shape) != 2 or boxes.shape[-1] != 4:
-                        raise ValueError(f"Expected target boxes to be a tensor of shape [N, 4], got {boxes.shape}.")
-                else:
-                    raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
+            if 0:
+                for target in targets:
+                    boxes = target["boxes"]
+                    if isinstance(boxes, torch.Tensor):
+                        if len(boxes.shape) != 2 or boxes.shape[-1] != 4:
+                            raise ValueError(f"Expected target boxes to be a tensor of shape [N, 4], got {boxes.shape}.")
+                    else:
+                        raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
 
         # get the original image sizes
         original_image_sizes: List[Tuple[int, int]] = []
@@ -528,19 +528,19 @@ class RetinaNet(nn.Module):
 
         # Check for degenerate boxes
         # TODO: Move this to a function
-        if targets is not None:
-            for target_idx, target in enumerate(targets):
-                boxes = target["boxes"]
-                degenerate_boxes = boxes[:, 2:] <= boxes[:, :2]
-                if degenerate_boxes.any():
-                    # print the first degenerate box
-                    bb_idx = torch.where(degenerate_boxes.any(dim=1))[0][0]
-                    degen_bb: List[float] = boxes[bb_idx].tolist()
-                    raise ValueError(
-                        "All bounding boxes should have positive height and width."
-                        f" Found invalid box {degen_bb} for target at index {target_idx}."
-                    )
-
+        if 0:
+            if targets is not None:
+                for target_idx, target in enumerate(targets):
+                    boxes = target["boxes"]
+                    degenerate_boxes = boxes[:, 2:] <= boxes[:, :2]
+                    if degenerate_boxes.any():
+                        # print the first degenerate box
+                        bb_idx = torch.where(degenerate_boxes.any(dim=1))[0][0]
+                        degen_bb: List[float] = boxes[bb_idx].tolist()
+                        raise ValueError(
+                            "All bounding boxes should have positive height and width."
+                            f" Found invalid box {degen_bb} for target at index {target_idx}."
+                        )
         # get the features from the backbone
         features = self.backbone(images.tensors)
         if isinstance(features, torch.Tensor):

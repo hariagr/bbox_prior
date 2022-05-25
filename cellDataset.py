@@ -102,8 +102,6 @@ class CSVDataset(Dataset):
             for key, value in self.classes.items():
                 num_of_points[value] = points_cell_count[key]
                 print("%s: %d" % (key, points_cell_count[key]))
-
-            # self.stoc_boxes_per_class = torch.tensor([num_pus2, num_rbc2, num_ep2])
         else:
              num_of_points = np.zeros(self.num_classes(), dtype=int)
 
@@ -164,14 +162,10 @@ class CSVDataset(Dataset):
 
     def __getitem__(self, idx):
         img = self.load_image(idx)
-        boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels, \
-                            weights, pweights, weights_imcls = self.load_annotations(idx)
-
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels = self.load_annotations(idx)
 
         target = {}
         target["image_id"] = torch.tensor([idx])
-        target["area"] = area
         target["iscrowd"] = torch.zeros_like(labels)
 
         target["boxes"] = boxes
@@ -182,6 +176,14 @@ class CSVDataset(Dataset):
         target["glabels"] = glabels
         target["mboxes"] = mboxes
         target["mlabels"] = mlabels
+
+        if boxes.numel():
+            area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+            target["hasBoxes"] = torch.tensor([1])
+        else:
+            area = torch.tensor([0])
+            target["hasBoxes"] = torch.tensor([0])
+        target["area"] = area
 
         target["objects_per_class"] = self.objects_per_class
         target["det_boxes_per_class"] = self.det_boxes_per_class
@@ -213,14 +215,11 @@ class CSVDataset(Dataset):
         glabels = []
         mboxes = []
         mlabels = []
-        weights = []
-        pweights = []
-        weights_imcls = []
 
         # some images appear to miss annotations
         if annotation_list is not None and len(annotation_list) == 0 and \
                 points_list is not None and len(points_list) == 0:
-            return boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels, weights, pweights, weights_imcls
+            return boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels
 
         # parse annotations
         if annotation_list is not None:  # box annotations
@@ -237,8 +236,6 @@ class CSVDataset(Dataset):
                 if a['class'] in self.classes:
                     boxes.append([x1, y1, x2, y2])
                     labels.append(self.classes[a['class']])
-                    weights.append(a['weight'])
-                    # weights_imcls.append(self.weights_imcls[a['class']])
                 elif a['class'] in self.mclass:
                     if self.missedlabels:
                         mboxes.append([x1, y1, x2, y2])
@@ -252,11 +249,8 @@ class CSVDataset(Dataset):
                 if a['class'] in self.classes:
                     x1 = a['x1']
                     y1 = a['y1']
-                    #x2 = a['x1']
-                    #y2 = a['y1']
                     points.append([x1, y1])  # store only center of the box
                     plabels.append(self.classes[a['class']])
-                    pweights.append(a['weight'])
 
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -271,11 +265,7 @@ class CSVDataset(Dataset):
         mboxes = torch.as_tensor(mboxes, dtype=torch.float32)
         mlabels = torch.as_tensor(mlabels, dtype=torch.int64)
 
-        weights = torch.as_tensor(weights, dtype=torch.float32)
-        pweights = torch.as_tensor(pweights, dtype=torch.float32)
-        weights_imcls = torch.as_tensor(weights_imcls, dtype=torch.float32)
-
-        return boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels, weights, pweights, weights_imcls
+        return boxes, labels, points, plabels, gboxes, glabels, mboxes, mlabels
 
     def _read_annotations(self, csv_reader, classes, gclasses, mclass):
         result = {}
@@ -287,7 +277,6 @@ class CSVDataset(Dataset):
                 #     img_file, x1, y1, x2, y2, class_name, weight = row[:7]
                 # else:
                 img_file, x1, y1, x2, y2, class_name = row[:6]
-                weight = 1
             except ValueError:
                 raise_from(ValueError(
                     'line {}: format should be \'img_file,x1,y1,x2,y2,class_name,weights\' or \'img_file,,,,,\''.format(line)),
@@ -305,8 +294,6 @@ class CSVDataset(Dataset):
             x2 = self._parse(int(float(x2)), int, 'line {}: malformed x2: {{}}'.format(line))
             y2 = self._parse(int(float(y2)), int, 'line {}: malformed y2: {{}}'.format(line))
 
-            weight = self._parse((float(weight)), float, 'line {}: malformed weight: {{}}'.format(line))  # float(weight)
-
             # Check that the bounding box is valid.
             # if x2 <= x1:
             #     raise ValueError('line {}: x2 ({}) must be higher than x1 ({})'.format(line, x2, x1))
@@ -318,7 +305,7 @@ class CSVDataset(Dataset):
             #    raise ValueError('line {}: unknown class name: \'{}\' (classes: {})'.format(line, class_name, classes))
 
             if (class_name in classes) or (class_name in gclasses) or (class_name in mclass):
-                result[img_file].append({'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': class_name, 'weight': weight})
+                result[img_file].append({'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': class_name})
 
         return result  # list of images having a dictionary for every bbox
 
@@ -340,58 +327,3 @@ class CSVDataset(Dataset):
 
     def image_index_to_image_file(self, image_index):
         return self.image_names[image_index]
-        
-    def compute_priors(self):
-        print(len(self.box_data))
-        pus_data = []
-        rbc_data = []
-        ep_data = []
-        for id in range(len(self.box_data)):
-            annotation_list = self.box_data[self.image_names[id]]
-            for idx, a in enumerate(annotation_list):
-                wd = a['x2'] - a['x1']
-                ht = a['y2'] - a['y1']
-                if a['class'] == 'pus':
-                    pus_data.append([wd, ht])
-                elif a['class'] == 'rbc':
-                    rbc_data.append([wd, ht])
-                elif a['class'] == 'ep':
-                    ep_data.append([wd, ht])
-
-        self.priors[0].append(np.mean(pus_data, 0))  # pus
-        self.priors[0].append(np.std(pus_data, 0))
-        self.priors[1].append(np.mean(rbc_data, 0))  # rbc
-        self.priors[1].append(np.std(rbc_data, 0))
-        self.priors[2].append(np.mean(ep_data, 0))  # ep
-        self.priors[2].append(np.std(ep_data, 0))
-        print('priors ', self.priors)
-
-        return self.priors
-
-
-    def compute_log_priors(self):
-
-        pus_data = []
-        rbc_data = []
-        ep_data = []
-        for id in range(len(self.box_data)):
-            annotation_list = self.box_data[self.image_names[id]]
-            for idx, a in enumerate(annotation_list):
-                wd = np.log(a['x2'] - a['x1'])
-                ht = np.log(a['y2'] - a['y1'])
-                if a['class'] == 'pus':
-                    pus_data.append([wd, ht])
-                elif a['class'] == 'rbc':
-                    rbc_data.append([wd, ht])
-                elif a['class'] == 'ep':
-                    ep_data.append([wd, ht])
-
-        self.log_priors[0].append(np.mean(pus_data, 0))  # pus
-        self.log_priors[0].append(np.std(pus_data, 0))
-        self.log_priors[1].append(np.mean(rbc_data, 0))  # rbc
-        self.log_priors[1].append(np.std(rbc_data, 0))
-        self.log_priors[2].append(np.mean(ep_data, 0))  # ep
-        self.log_priors[2].append(np.std(ep_data, 0))
-        print('Log priors ', self.log_priors)
-
-        return self.log_priors

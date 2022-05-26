@@ -250,8 +250,6 @@ def main(args):
         print('Calculating box priors')
         model = cal_bbox_priors(model, data_loader, device)
 
-    exit()
-    
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 

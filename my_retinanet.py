@@ -401,6 +401,11 @@ class RetinaNet(nn.Module):
         # used only on torchscript mode
         self._has_warned = False
 
+        # bounding box prior
+        #self.box_priors = box_priors
+        self.bbox_prior_coverage = 1
+        self.bbox_prior_sampling_step = 0.5
+
     @torch.jit.unused
     def eager_outputs(self, losses, detections):
         # type: (Dict[str, Tensor], List[Dict[str, Tensor]]) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]
@@ -411,15 +416,52 @@ class RetinaNet(nn.Module):
 
     def compute_loss(self, targets, head_outputs, anchors):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Dict[str, Tensor]
+
         matched_idxs = []
         for anchors_per_image, targets_per_image in zip(anchors, targets):
-            if targets_per_image["boxes"].numel() == 0:
+            device = anchors_per_image.device
+            if targets_per_image["boxes"].numel() == 0 and targets_per_image['points'].numel() == 0:
                 matched_idxs.append(
-                    torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=anchors_per_image.device)
+                    torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)
                 )
                 continue
 
-            match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)
+            if targets_per_image["boxes"].numel() != 0:
+                match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)
+            else:
+                match_quality_matrix = torch.tensor([], device=device)
+
+            if targets_per_image['points'].numel() != 0:
+                # assuming stochastic boxes are the samples of probability distribution between
+                # mu - n * sigma to mu + n * sigma
+                n = self.bbox_prior_coverage
+                pmatch_quality_matrix = torch.zeros(targets_per_image['points'].shape[0], anchors_per_image.shape[0],
+                                                    device=device)
+                for ws in torch.linspace(-n, n,
+                                         int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step))) + 1,
+                                         device=device):
+                    for hs in torch.linspace(-n, n,
+                                             int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step))) + 1,
+                                             device=device):
+                        # define width and height
+                        stochastic_box = torch.tensor([], device=device)
+                        for label, center in zip(targets_per_image['plabels'], targets_per_image['points']):
+                            x1 = center[0] - 0.5 * (
+                                    self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
+                            x2 = center[0] + 0.5 * (
+                                    self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
+                            y1 = center[1] - 0.5 * (
+                                    self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
+                            y2 = center[1] + 0.5 * (
+                                    self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
+                            stochastic_box = torch.cat(
+                                (stochastic_box, torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)), 0)
+                        pmatch_quality_matrix = torch.maximum(pmatch_quality_matrix,
+                                                              box_ops.box_iou(stochastic_box, anchors_per_image))
+            else:
+                pmatch_quality_matrix = torch.tensor([], device=device)
+
+            match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
             matched_idxs.append(self.proposal_matcher(match_quality_matrix))
 
         return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs)

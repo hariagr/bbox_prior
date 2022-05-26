@@ -175,6 +175,8 @@ def get_args_parser(add_help=True):
         help="normalize the bounding box offset such that std(offset) = 1",
     )
 
+    parser.add_argument("--alpha", default=0, type=float, help="weighing parameter for stochastic boxes")
+
     return parser
 
 

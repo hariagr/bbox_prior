@@ -75,6 +75,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--train-file", default="train.csv", type=str, help="box annotations for training")
     parser.add_argument("--train-points-file", default=None, type=str, help="point annotations for training")
     parser.add_argument("--val-file", default="val.csv", type=str, help="annotations for validation")
+    parser.add_argument("--test-file", default="test.csv", type=str, help="annotations for validation")
 
     parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
@@ -117,7 +118,7 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
     )
-    parser.add_argument("--eval-freq", default=5, type=int, help="evaluation frequency")
+    parser.add_argument("--eval-freq", default=1, type=int, help="evaluation frequency")
     parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
@@ -175,7 +176,12 @@ def get_args_parser(add_help=True):
         help="normalize the bounding box offset such that std(offset) = 1",
     )
 
-    parser.add_argument("--alpha", default=0, type=float, help="weighing parameter for stochastic boxes")
+    # parameters for bounding box prior strategy
+    parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
+    parser.add_argument("--bbp-coverage", default=1, type=int,
+                        help="(in terms of std.dev.) - maximum wideness of a stochastic box")
+    parser.add_argument("--bbp-sampling-step", default=0.5, type=float,
+                        help="sampling of stochastic box wideness")
 
     return parser
 
@@ -206,18 +212,24 @@ def main(args):
 
     print("Initializing training and validation dataset classes")
     train_boxes_file = os.path.join('data/annotations/', args.train_file)
-    train_points_file = os.path.join('data/annotations/', args.train_points_file)
+    if args.train_points_file is not None:
+        train_points_file = os.path.join('data/annotations/', args.train_points_file)
+    else:
+        train_points_file = None
     dataset = CSVDataset(train_boxes_file, points_file=train_points_file, transform=T.Compose([T.ToTensor()]))
     dataset_val = CSVDataset(os.path.join('data/annotations/', args.val_file), transform=T.Compose([T.ToTensor()]))
+    dataset_test = CSVDataset(os.path.join('data/annotations/', args.test_file), transform=T.Compose([T.ToTensor()]))
     num_classes = dataset.num_classes()
 
     print("Creating data loaders")
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         val_sampler = torch.utils.data.distributed.DistributedSampler(dataset_val)
+        test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
         val_sampler = torch.utils.data.SequentialSampler(dataset_val)
+        test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
     if args.aspect_ratio_group_factor >= 0:
         group_ids = create_aspect_ratio_groups(dataset, k=args.aspect_ratio_group_factor)
@@ -231,6 +243,10 @@ def main(args):
 
     data_loader_val = torch.utils.data.DataLoader(
         dataset_val, batch_size=1, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+    )
+
+    data_loader_test = torch.utils.data.DataLoader(
+        dataset_test, batch_size=1, sampler=test_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
     )
 
     if args.balance:
@@ -287,7 +303,7 @@ def main(args):
             scaler.load_state_dict(checkpoint["scaler"])
 
     if args.test_only:
-        evaluate(model, data_loader_val, device=device)
+        evaluate(model, data_loader_test, device=device)
         return
 
     print("Start training")
@@ -315,10 +331,12 @@ def main(args):
 
         # evaluate after every epoch
         if (epoch + 1) % args.eval_freq == 0:
-            # coco evaluation
-            evaluate(model, data_loader_val, device=device)
-            # our evaluation
-            eval_mAP_F1(dataset_val, model, count=epoch)
+            coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
+            average_precisions, f1_score, tp, fp, fn, eval_time = eval_mAP_F1(dataset_val, model, count=epoch)  # our evaluation
+
+            evaluate(model, data_loader_test, device=device)
+            eval_mAP_F1(dataset_test, model, count=epoch)
+
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

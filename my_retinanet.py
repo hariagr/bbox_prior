@@ -388,7 +388,9 @@ class RetinaNet(nn.Module):
         topk_candidates=1000,
         # loss parameters
         bl_weights=None,
-        alpha=0
+        alpha=0,
+        bbp_coverage=1,
+        bbp_sampling_step=0.5,
     ):
         super().__init__()
         _log_api_usage_once(self)
@@ -439,8 +441,8 @@ class RetinaNet(nn.Module):
 
         # bounding box prior
         #self.box_priors = box_priors
-        self.bbox_prior_coverage = 1
-        self.bbox_prior_sampling_step = 0.5
+        self.bbox_prior_coverage = bbp_coverage
+        self.bbox_prior_sampling_step = bbp_sampling_step
 
     @torch.jit.unused
     def eager_outputs(self, losses, detections):

@@ -70,14 +70,14 @@ def get_args_parser(add_help=True):
 
     parser = argparse.ArgumentParser(description="PyTorch Detection Training", add_help=add_help)
 
-    parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
-    parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
+    #parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
+    #parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
     parser.add_argument("--train-file", default="train.csv", type=str, help="box annotations for training")
     parser.add_argument("--train-points-file", default=None, type=str, help="point annotations for training")
     parser.add_argument("--val-file", default="val.csv", type=str, help="annotations for validation")
     parser.add_argument("--test-file", default="test.csv", type=str, help="annotations for validation")
 
-    parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
+    #parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
         "-b", "--batch-size", default=2, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -105,32 +105,32 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--lr-scheduler", default="reducelronplateau", type=str, help="name of lr scheduler (default: reducelronplateau)"
     )
-    parser.add_argument(
-        "--lr-step-size", default=8, type=int, help="decrease lr every step-size epochs (multisteplr scheduler only)"
-    )
-    parser.add_argument(
-        "--lr-steps",
-        default=[16, 22],
-        nargs="+",
-        type=int,
-        help="decrease lr every step-size epochs (multisteplr scheduler only)",
-    )
-    parser.add_argument(
-        "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
-    )
+    #parser.add_argument(
+    #    "--lr-step-size", default=8, type=int, help="decrease lr every step-size epochs (multisteplr scheduler only)"
+    #)
+    #parser.add_argument(
+    #    "--lr-steps",
+    #    default=[16, 22],
+    #    nargs="+",
+    #    type=int,
+    #    help="decrease lr every step-size epochs (multisteplr scheduler only)",
+    #)
+    #parser.add_argument(
+    #    "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
+    #)
     parser.add_argument("--eval-freq", default=1, type=int, help="evaluation frequency")
     parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
     parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
     parser.add_argument("--aspect-ratio-group-factor", default=-1, type=int)
-    parser.add_argument("--rpn-score-thresh", default=None, type=float, help="rpn score threshold for faster-rcnn")
+    #parser.add_argument("--rpn-score-thresh", default=None, type=float, help="rpn score threshold for faster-rcnn")
     parser.add_argument(
         "--trainable-backbone-layers", default=None, type=int, help="number of trainable layers of backbone"
     )
-    parser.add_argument(
-        "--data-augmentation", default="None", type=str, help="data augmentation policy (default: hflip)"
-    )
+    #parser.add_argument(
+    #    "--data-augmentation", default="None", type=str, help="data augmentation policy (default: hflip)"
+    #)
     parser.add_argument(
         "--sync-bn",
         dest="sync_bn",
@@ -260,13 +260,13 @@ def main(args):
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, **kwargs)
     model.to(device)
 
-    if args.target_normalization:
-        print('Calculating target normalization weights')
-        model = cal_tnorm_weights(model, data_loader, device)
-
     if args.train_points_file is not None:
         print('Calculating box priors')
         model = cal_bbox_priors(model, data_loader, device)
+        
+    if args.target_normalization:
+        print('Calculating target normalization weights')
+        model = cal_tnorm_weights(model, data_loader, device)
 
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

@@ -407,7 +407,7 @@ def evaluate(
         results['FP-' + classes[label]] = fp[label]
         results['FN-' + classes[label]] = fn[label]
 
-    results = pd.DataFrame(results)
+    results = pd.DataFrame([results])
 
     retinanet.train()
     return results, eval_time

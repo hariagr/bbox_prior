@@ -122,6 +122,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=None, type=str, help="path to save outputs")
     parser.add_argument("--config", default=None, type=str, help="configuration name used to set filename of the csv files")
+    parser.add_argument("--results-dir", default=None, type=str, help="path to save csv result files")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
     parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")
     parser.add_argument("--aspect-ratio-group-factor", default=-1, type=int)
@@ -194,6 +195,8 @@ def main(args):
         raise ValueError("The weights parameter works only in prototype mode. Please pass the --prototype argument.")
     if args.output_dir is not None:
         utils.mkdir(args.output_dir)
+    if args.results_dir is not None:
+        utils.mkdir(args.results_dir)
 
     utils.init_distributed_mode(args)
     print(args)
@@ -334,19 +337,20 @@ def main(args):
         if (epoch + 1) % args.eval_freq == 0:
             #coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
             eval_val, eval_time = eval_mAP_F1(dataset_val, model, count=epoch)  # our evaluation
-            eval_val['epoch'] = epoch
-
-            folder = 'results'
-            filename = os.path.join(folder, args.config + '_val_' + time.strftime('%Y%m%d_%H%M%S', time.localtime(start_time)) + '.csv')
-            os.makedirs(folder, exist_ok=True)
-            eval_val.to_csv(filename, mode='a', header=not os.path.exists(filename))
-
-            #evaluate(model, data_loader_test, device=device)
+            # evaluate(model, data_loader_test, device=device)
             eval_test, eval_time = eval_mAP_F1(dataset_test, model, count=epoch)
-            eval_test['epoch'] = epoch
-            filename = os.path.join(folder, args.config + '_test_' + time.strftime('%Y%m%d_%H%M%S',
-                                                                                  time.localtime(start_time)) + '.csv')
-            eval_test.to_csv(filename, mode='a', header=not os.path.exists(filename))
+
+            if args.results_dir is not None:
+                eval_val['epoch'] = epoch
+                eval_test['epoch'] = epoch
+
+                filename = os.path.join(args.results_dir, args.config + '_val_' + time.strftime('%Y%m%d_%H%M%S',
+                                                                                     time.localtime(start_time)) + '.csv')
+                eval_val.to_csv(filename, mode='a', header=not os.path.exists(filename))
+
+                filename = os.path.join(args.results_dir, args.config + '_test_' + time.strftime('%Y%m%d_%H%M%S',
+                                                                                      time.localtime(start_time)) + '.csv')
+                eval_test.to_csv(filename, mode='a', header=not os.path.exists(filename))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

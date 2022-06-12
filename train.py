@@ -120,7 +120,7 @@ def get_args_parser(add_help=True):
     #)
     parser.add_argument("--eval-freq", default=1, type=int, help="evaluation frequency")
     parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
-    parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
+    parser.add_argument("--output-dir", default=None, type=str, help="path to save outputs")
     parser.add_argument("--config", default=None, type=str, help="configuration name used to set filename of the csv files")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
     parser.add_argument("--start_epoch", default=0, type=int, help="start epoch")

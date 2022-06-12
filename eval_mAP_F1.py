@@ -383,20 +383,6 @@ def evaluate(
                 fp[label] = 0
                 fn[label] = 0
 
-        # # plot precision-recall curve
-        # plt.plot(recall, precision)
-        # plt.xlabel("recall")
-        # plt.ylabel("precision")
-        # plt.title("PR curve")
-        #
-        # write tp and fp values in csv
-        # os.makedirs(csv_path, exist_ok=True)
-        # csv_name = csv_path + '/tfp_' + generator.labels[label] + '.csv'
-        # with open(csv_name, 'a', newline='') as f1:
-        #     writefile1 = csv.writer(f1)
-        #     for line in zip(scores, true_positives, false_positives):
-        #         writefile1.writerow(line)
-
     print('\nmAP:')
     if text_file_path is not None:
         with open(text_file_path, "a") as text_file:
@@ -410,7 +396,18 @@ def evaluate(
             label_name = generator.label_to_name(label)
             print('{0:5s}: {1:6.3f}'.format(label_name, average_precisions[label][0]))
 
-    #plt.show()
+    # create a dataframe combining all return results
+    # first create a dictionary
+    classes = ['pus', 'rbc', 'ep']
+    results = {}
+    for label in range(generator.num_classes()):
+        results['mAP-' + classes[label]] = average_precisions[label][0]
+        results['F1-' + classes[label]] = f1_score[label]
+        results['TP-' + classes[label]] = tp[label]
+        results['FP-' + classes[label]] = fp[label]
+        results['FN-' + classes[label]] = fn[label]
+
+    results = pd.DataFrame(results)
 
     retinanet.train()
-    return average_precisions, f1_score, tp, fp, fn, eval_time
+    return results, eval_time

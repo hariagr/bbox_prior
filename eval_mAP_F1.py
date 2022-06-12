@@ -198,7 +198,7 @@ def evaluate(
         text_file_path=None,
         count=1,
         missedLabels=False,
-        ret=0
+        ret=1
 ):
     """ Evaluate a given dataset using a given retinanet.
     # Arguments

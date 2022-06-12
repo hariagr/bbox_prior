@@ -48,5 +48,5 @@ def cal_bbox_priors(model, dataloader, device):
     model.head.regression_head.bbox_priors = bbox_priors
 
     print(bbox_priors)
-    
+
     return model

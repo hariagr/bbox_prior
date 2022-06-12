@@ -331,18 +331,13 @@ def main(args):
 
         # evaluate after every epoch
         if (epoch + 1) % args.eval_freq == 0:
-            coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
-            average_precisions, f1_score, tp, fp, fn, eval_time = eval_mAP_F1(dataset_val, model, count=epoch)  # our evaluation
+            #coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
+            eval_val, eval_time = eval_mAP_F1(dataset_val, model, count=epoch)  # our evaluation
+            print(eval_val)
 
-            print(average_precisions)
-            print(f1_score)
-            print(tp)
-            print(fp)
-            print(fn)
-            print(eval_time)
-
-            evaluate(model, data_loader_test, device=device)
-            eval_mAP_F1(dataset_test, model, count=epoch)
+            #evaluate(model, data_loader_test, device=device)
+            eval_test, eval_time = eval_mAP_F1(dataset_test, model, count=epoch)
+            print(eval_test)
 
 
     total_time = time.time() - start_time

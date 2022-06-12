@@ -192,7 +192,7 @@ def main(args):
         raise ImportError("The prototype module couldn't be found. Please install the latest torchvision nightly.")
     if not args.prototype and args.weights:
         raise ValueError("The weights parameter works only in prototype mode. Please pass the --prototype argument.")
-    if args.output_dir:
+    if args.output_dir is not None:
         utils.mkdir(args.output_dir)
 
     utils.init_distributed_mode(args)
@@ -317,7 +317,7 @@ def main(args):
             lr_scheduler.step(metric_logger.meters.get('loss').value)
         else:
             lr_scheduler.step()
-        if args.output_dir:
+        if args.output_dir is not None:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
                 "optimizer": optimizer.state_dict(),

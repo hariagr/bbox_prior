@@ -263,7 +263,7 @@ def main(args):
     if args.train_points_file is not None:
         print('Calculating box priors')
         model = cal_bbox_priors(model, data_loader, device)
-        
+
     if args.target_normalization:
         print('Calculating target normalization weights')
         model = cal_tnorm_weights(model, data_loader, device)
@@ -333,6 +333,13 @@ def main(args):
         if (epoch + 1) % args.eval_freq == 0:
             coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
             average_precisions, f1_score, tp, fp, fn, eval_time = eval_mAP_F1(dataset_val, model, count=epoch)  # our evaluation
+
+            print(average_precisions)
+            print(f1_score)
+            print(tp)
+            print(fp)
+            print(fn)
+            print(eval_time)
 
             evaluate(model, data_loader_test, device=device)
             eval_mAP_F1(dataset_test, model, count=epoch)

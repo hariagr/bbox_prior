@@ -7,14 +7,16 @@ import numpy as np
 import csv
 import warnings
 import pandas as pd
-
+import os
 
 class CSVDataset(Dataset):
     """CSV dataset."""
-    def __init__(self, train_file,
+    def __init__(self,
+                 data_path,
+                 train_file,
                  points_file=None,
-                 class_list='data/annotations/classmaps.csv',
-                 gclass_list='data/annotations/groupclassmaps.csv',
+                 class_list='annotations/classmaps.csv',
+                 gclass_list='annotations/groupclassmaps.csv',
                  missedlabels=True,
                  transform=None,
                  weights=False):
@@ -26,10 +28,10 @@ class CSVDataset(Dataset):
         """
         self.train_file = train_file
         self.points_file = points_file
-        self.class_list = class_list
-        self.gclass_list = gclass_list
+        self.class_list = os.path.join(data_path, class_list)
+        self.gclass_list = os.path.join(data_path, gclass_list)
         self.transform = transform
-        self.image_folder = 'data/images/'
+        self.image_folder = os.path.join(data_path, 'images/')
         self.missedlabels = missedlabels
         self.mclass = 'missedlabel'
 

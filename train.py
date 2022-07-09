@@ -70,7 +70,7 @@ def get_args_parser(add_help=True):
 
     parser = argparse.ArgumentParser(description="PyTorch Detection Training", add_help=add_help)
 
-    #parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
+    parser.add_argument("--data-path", default="data/UMID/", type=str, help="dataset path")
     #parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
     parser.add_argument("--train-file", default="train.csv", type=str, help="box annotations for training")
     parser.add_argument("--train-points-file", default=None, type=str, help="point annotations for training")
@@ -214,15 +214,16 @@ def main(args):
 	# 	                T.ToTensor()]))
     # dataset_test = PennFudanDataset(args.data_path)
 
+    annotations_path = os.path.join(args.data_path + 'annotations')
     print("Initializing training and validation dataset classes")
-    train_boxes_file = os.path.join('data/annotations/', args.train_file)
+    train_boxes_file = os.path.join(annotations_path, args.train_file)
     if args.train_points_file is not None:
-        train_points_file = os.path.join('data/annotations/', args.train_points_file)
+        train_points_file = os.path.join(annotations_path, args.train_points_file)
     else:
         train_points_file = None
-    dataset = CSVDataset(train_boxes_file, points_file=train_points_file, transform=T.Compose([T.ToTensor()]))
-    dataset_val = CSVDataset(os.path.join('data/annotations/', args.val_file), transform=T.Compose([T.ToTensor()]))
-    dataset_test = CSVDataset(os.path.join('data/annotations/', args.test_file), transform=T.Compose([T.ToTensor()]))
+    dataset = CSVDataset(args.data_path, train_boxes_file, points_file=train_points_file, transform=T.Compose([T.ToTensor()]))
+    dataset_val = CSVDataset(args.data_path, os.path.join(annotations_path, args.val_file), transform=T.Compose([T.ToTensor()]))
+    dataset_test = CSVDataset(args.data_path, os.path.join(annotations_path, args.test_file), transform=T.Compose([T.ToTensor()]))
     num_classes = dataset.num_classes()
 
     print("Creating data loaders")

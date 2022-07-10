@@ -398,14 +398,15 @@ def evaluate(
 
     # create a dataframe combining all return results
     # first create a dictionary
-    classes = ['pus', 'rbc', 'ep']
+    #classes = ['pus', 'rbc', 'ep']
     results = {}
     for label in range(generator.num_classes()):
-        results['mAP-' + classes[label]] = average_precisions[label][0]
-        results['F1-' + classes[label]] = f1_score[label]
-        results['TP-' + classes[label]] = tp[label]
-        results['FP-' + classes[label]] = fp[label]
-        results['FN-' + classes[label]] = fn[label]
+        class_name = generator.labels[label]
+        results['mAP-' + class_name] = average_precisions[label][0]
+        results['F1-' + class_name] = f1_score[label]
+        results['TP-' + class_name] = tp[label]
+        results['FP-' + class_name] = fp[label]
+        results['FN-' + class_name] = fn[label]
 
     results = pd.DataFrame([results])
 

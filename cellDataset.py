@@ -190,7 +190,7 @@ class CSVDataset(Dataset):
         target["objects_per_class"] = self.objects_per_class
         target["det_boxes_per_class"] = self.det_boxes_per_class
         target["stoc_boxes_per_class"] = self.stoc_boxes_per_class
-        target["image_name"] = torch.tensor([int(self.image_index_to_image_file(idx).split(".jpg")[0])])
+        #target["image_name"] = torch.tensor([int(self.image_index_to_image_file(idx).split(".jpg")[0])])
         image, target = self.transform(img, target)
 
         return image, target

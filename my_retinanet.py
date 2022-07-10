@@ -496,10 +496,12 @@ class RetinaNet(nn.Module):
                                 (stochastic_box, torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)), 0)
                         pmatch_quality_matrix = torch.maximum(pmatch_quality_matrix,
                                                               box_ops.box_iou(stochastic_box, anchors_per_image))
-            else:
-                pmatch_quality_matrix = torch.tensor([], device=device)
 
-            match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
+                match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
+            #else:
+            #    pmatch_quality_matrix = torch.tensor([], device=device)
+
+            #match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
             matched_idxs.append(self.proposal_matcher(match_quality_matrix))
 
         return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs)

@@ -7,6 +7,37 @@ from collections import defaultdict, deque
 import torch
 import torch.distributed as dist
 
+from torch import Tensor
+from torchvision.ops import boxes as box_ops
+
+# implementation from torchvision.ops box_iou
+# with slight modifications
+def box_ioa(boxes1: Tensor, boxes2: Tensor) -> Tensor:
+    """
+    Return intersection-over-anchor set of boxes.
+
+    Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
+
+    Arguments:
+        boxes1 (Tensor[N, 4])
+        boxes2 (Tensor[M, 4])
+
+    Returns:
+        iou (Tensor[N, M]): the NxM matrix containing the pairwise IoA values for every element in boxes1 and boxes2
+    """
+    #area1 = box_area(boxes1)
+    area2 = box_ops.box_area(boxes2)
+
+    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
+    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
+
+    wh = (rb - lt).clamp(min=0)  # [N,M,2]
+    inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
+
+    # intersection over anchor set
+    ioa = inter / area2  # area2 : anchor boxes area
+
+    return ioa
 
 class SmoothedValue:
     """Track a series of values and provide access to smoothed values over a

@@ -738,6 +738,7 @@ def retinanet_resnet50_fpn(
     norm_layer = None
     if freeze_bn:
         norm_layer = misc_nn_ops.FrozenBatchNorm2d
+    print(norm_layer)
 
     backbone = resnet50(pretrained=pretrained_backbone, progress=progress, norm_layer=norm_layer)
     #backbone = resnet50(pretrained=pretrained_backbone, progress=progress)

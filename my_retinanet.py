@@ -16,7 +16,7 @@ from torchvision.models.resnet import resnet50
 from torchvision.models.detection import _utils as det_utils
 from torchvision.models.detection._utils import overwrite_eps
 from torchvision.models.detection.anchor_utils import AnchorGenerator
-from torchvision.models.detection.backbone_utils import _resnet_fpn_extractor, _validate_trainable_layers
+from backbone_utils import _resnet_fpn_extractor, _validate_trainable_layers
 from GeneralizedRCNNTransform import GeneralizedRCNNTransform
 
 import utils
@@ -408,7 +408,7 @@ class RetinaNet(nn.Module):
         assert isinstance(anchor_generator, (AnchorGenerator, type(None)))
 
         if anchor_generator is None:
-            anchor_sizes = tuple((x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in [32, 64, 128, 256, 512])
+            anchor_sizes = tuple((x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3))) for x in [32, 64, 128])  #, 256, 512
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
             anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
         self.anchor_generator = anchor_generator
@@ -765,7 +765,7 @@ def retinanet_resnet50_fpn(
     #backbone = resnet50(pretrained=pretrained_backbone, progress=progress)
     # skip P2 because it generates too many anchors (according to their paper)
     backbone = _resnet_fpn_extractor(
-        backbone, trainable_backbone_layers, returned_layers=[2, 3, 4], extra_blocks=LastLevelP6P7(256, 256)
+        backbone, trainable_backbone_layers, returned_layers=[2, 3, 4], extra_blocks=None  #LastLevelP6P7(256, 256)
     )
     model = RetinaNet(backbone, num_classes, **kwargs)
     if pretrained:

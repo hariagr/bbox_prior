@@ -19,6 +19,8 @@ from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import _resnet_fpn_extractor, _validate_trainable_layers
 from GeneralizedRCNNTransform import GeneralizedRCNNTransform
 
+import utils
+
 __all__ = ["RetinaNet", "retinanet_resnet50_fpn"]
 
 
@@ -458,16 +460,20 @@ class RetinaNet(nn.Module):
         matched_idxs = []
         for anchors_per_image, targets_per_image in zip(anchors, targets):
             device = anchors_per_image.device
-            if targets_per_image["boxes"].numel() == 0 and targets_per_image['points'].numel() == 0:
+            if targets_per_image["boxes"].numel() == 0 and targets_per_image['points'].numel() == 0 and \
+                    targets_per_image["gboxes"].numel() == 0 and targets_per_image["mboxes"].numel() == 0:
                 matched_idxs.append(
-                    torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)
+                    torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)  # set all anchors as background
                 )
                 continue
 
             if targets_per_image["boxes"].numel() != 0:
                 match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)
+                bmatched_idxs = self.proposal_matcher(match_quality_matrix)
+                bmatched_anchors = bmatched_idxs >= 0
             else:
                 match_quality_matrix = torch.tensor([], device=device)
+                bmatched_idxs = torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)
 
             if targets_per_image['points'].numel() != 0:
                 # assuming stochastic boxes are the samples of probability distribution between
@@ -498,11 +504,26 @@ class RetinaNet(nn.Module):
                                                               box_ops.box_iou(stochastic_box, anchors_per_image))
 
                 match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
-            #else:
-            #    pmatch_quality_matrix = torch.tensor([], device=device)
+                bmatched_idxs = self.proposal_matcher(match_quality_matrix)
+                #bmatched_anchors = bmatched_idxs >= 0
+            else:  # clusters are considered only if point information is not available
+                if targets_per_image["gboxes"].numel() != 0:
+                    gmatch_quality_matrix = utils.box_ioa(targets_per_image['gboxes'],
+                                                          anchors_per_image)  # anchors lying inside the gboxes
+                    gmatched_idxs = self.proposal_matcher(gmatch_quality_matrix)
+                    gmatched_anchors = gmatched_idxs >= 0
+                    # single cell anchors lying inside clusters are removed from matching vector
+                    gmatched_anchors[bmatched_anchors] = False
+                    bmatched_idxs[gmatched_anchors] = -2  # BETWEEN_THRESHOLDS, see proposal_matcher function
 
-            #match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
-            matched_idxs.append(self.proposal_matcher(match_quality_matrix))
+            if targets_per_image['mboxes'].numel() != 0:
+                # IOU or IOA (decide) for missed labels
+                mmatch_quality_matrix = box_ops.box_iou(targets_per_image['mboxes'], anchors_per_image)  # anchors lying inside the gboxes
+                mmatched_idxs = self.proposal_matcher(mmatch_quality_matrix)
+                mmatched_anchors = mmatched_idxs >= 0
+                bmatched_idxs[mmatched_anchors] = -2
+
+            matched_idxs.append(bmatched_idxs)
 
         return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs)
 
@@ -738,7 +759,7 @@ def retinanet_resnet50_fpn(
     norm_layer = None
     if freeze_bn:
         norm_layer = misc_nn_ops.FrozenBatchNorm2d
-    print(norm_layer)
+    #print(norm_layer)
 
     backbone = resnet50(pretrained=pretrained_backbone, progress=progress, norm_layer=norm_layer)
     #backbone = resnet50(pretrained=pretrained_backbone, progress=progress)

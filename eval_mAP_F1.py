@@ -224,6 +224,8 @@ def evaluate(
     tp = {}
     fp = {}
     fn = {}
+    pr = {}
+    rc = {}
 
     for label in range(generator.num_classes()):
         false_positives = np.zeros((0,))
@@ -377,11 +379,15 @@ def evaluate(
                     tp[label] = df2.loc[index]['TP']
                     fp[label] = df2.loc[index]['FP']
                     fn[label] = df2.loc[index]['FN']
+                    pr[label] = df2.loc[index]['Prec']
+                    rc[label] = df2.loc[index]['Recall']
             if kk == 0:  # when there are no entries for threshold>=0.6
                 f1_score[label] = 0
                 tp[label] = 0
                 fp[label] = 0
                 fn[label] = 0
+                pr[label] = 0
+                rc[label] = 0
 
     print('\nmAP:')
     if text_file_path is not None:
@@ -407,6 +413,8 @@ def evaluate(
         results['TP-' + class_name] = tp[label]
         results['FP-' + class_name] = fp[label]
         results['FN-' + class_name] = fn[label]
+        results['Pr-' + class_name] = pr[label]
+        results['Rc-' + class_name] = rc[label]
 
     results = pd.DataFrame([results])
 

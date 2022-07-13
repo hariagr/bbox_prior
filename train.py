@@ -267,6 +267,8 @@ def main(args):
     else:
         bl_weights = torch.ones(num_classes).to(device)
 
+    print(args.freeze_bn)
+    
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)

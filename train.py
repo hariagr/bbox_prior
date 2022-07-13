@@ -178,6 +178,13 @@ def get_args_parser(add_help=True):
         help="normalize the bounding box offset such that std(offset) = 1",
     )
 
+    # freeze batch norm
+    parser.add_argument(
+        "--freeze-bn",
+        action="store_true",
+        help="freeze the batch norm in the pretrained model",
+    )
+
     # parameters for bounding box prior strategy
     parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
     parser.add_argument("--bbp-coverage", default=1, type=int,
@@ -262,7 +269,7 @@ def main(args):
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights}
-    model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, **kwargs)
+    model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
 
     if args.train_points_file is not None:

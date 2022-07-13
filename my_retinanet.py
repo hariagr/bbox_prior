@@ -678,7 +678,7 @@ model_urls = {
 
 
 def retinanet_resnet50_fpn(
-    pretrained=False, progress=True, num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None, **kwargs
+    pretrained=False, progress=True, num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None, freeze_bn=False, **kwargs
 ):
     """
     Constructs a RetinaNet model with a ResNet-50-FPN backbone.
@@ -735,7 +735,11 @@ def retinanet_resnet50_fpn(
         # no need to download the backbone if pretrained is set
         pretrained_backbone = False
 
-    backbone = resnet50(pretrained=pretrained_backbone, progress=progress, norm_layer=misc_nn_ops.FrozenBatchNorm2d)
+    norm_layer = None
+    if freeze_bn:
+        norm_layer = misc_nn_ops.FrozenBatchNorm2d
+
+    backbone = resnet50(pretrained=pretrained_backbone, progress=progress, norm_layer=norm_layer)
     #backbone = resnet50(pretrained=pretrained_backbone, progress=progress)
     # skip P2 because it generates too many anchors (according to their paper)
     backbone = _resnet_fpn_extractor(

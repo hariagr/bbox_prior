@@ -344,9 +344,9 @@ def main(args):
         # evaluate after every epoch
         if (epoch + 1) % args.eval_freq == 0:
             #coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
-            eval_val, eval_time = eval_mAP_F1(dataset_val, model, count=epoch)  # our evaluation
+            eval_val, eval_time = eval_mAP_F1(dataset_val, model, count=epoch, missedLabels=True)  # our evaluation
             # evaluate(model, data_loader_test, device=device)
-            eval_test, eval_time = eval_mAP_F1(dataset_test, model, count=epoch)
+            eval_test, eval_time = eval_mAP_F1(dataset_test, model, count=epoch, missedLabels=True)
 
             if args.results_dir is not None:
                 eval_val['epoch'] = epoch

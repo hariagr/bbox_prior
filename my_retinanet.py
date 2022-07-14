@@ -212,7 +212,7 @@ class RetinaNetRegressionHead(nn.Module):
                     stochastic_box = torch.cat(
                         (stochastic_box, torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)), 0)
                     weights_stbox = torch.cat((weights_stbox, torch.tensor(
-                        [1, 1, self.alpha / self.bbox_priors['logOfwidth_std'][label],
+                        [self.alpha, self.alpha, self.alpha / self.bbox_priors['logOfwidth_std'][label],
                          self.alpha / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
 
             weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)

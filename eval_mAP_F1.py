@@ -295,12 +295,14 @@ def evaluate(
                     true_positives = np.append(true_positives, 0)
 
         # no annotations -> AP for this class is 0 (is this correct?)
-        if num_annotations == 0:
+        if num_annotations == 0 or scores.size == 0:
             average_precisions[label] = 0, 0
             f1_score[label] = 0
-            # tp[label] = 0
-            # fp[label] = 0
-            # fn[label] = 0
+            tp[label] = 0
+            fp[label] = 0
+            fn[label] = 0
+            pr[label] = 0
+            rc[label] = 0
             continue
 
         # sort by score

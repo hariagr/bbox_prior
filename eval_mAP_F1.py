@@ -227,6 +227,9 @@ def evaluate(
     pr = {}
     rc = {}
 
+    store_df = True
+    df_to_return = pd.DataFrame()
+
     for label in range(generator.num_classes()):
         false_positives = np.zeros((0,))
         true_positives = np.zeros((0,))
@@ -347,6 +350,10 @@ def evaluate(
         columns = ['score', 'TP', 'FP', 'FN', 'Prec', 'Recall', 'F1']
         df = pd.DataFrame(data, columns=columns)
 
+        if store_df:
+            if label == 1:
+                df_to_return = df
+
         sc = np.linspace(1, 0, 11)
         indx = []
         scc = []
@@ -421,4 +428,4 @@ def evaluate(
     results = pd.DataFrame([results])
 
     retinanet.train()
-    return results, eval_time
+    return results, eval_time, df_to_return

@@ -112,8 +112,10 @@ class CSVDataset(Dataset):
         self.stoc_boxes_per_class = torch.tensor(num_of_points)
 
         # calculate weights for balanced loss function
+        beta = 0.999
         class_counts = torch.tensor(num_of_points + num_of_boxes)
-        bl_weights = 1 / class_counts
+        #bl_weights = 1 / class_counts
+        bl_weights = (1 - beta)/(1 - torch.pow(beta, class_counts))
         bl_weights[class_counts == 0] = 0
         self.bl_weights = bl_weights / bl_weights.sum()
 

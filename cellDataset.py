@@ -19,6 +19,7 @@ class CSVDataset(Dataset):
                  gclass_list='annotations/groupclassmaps.csv',
                  missedlabels=True,
                  transform=None,
+                 beta=0.999,
                  weights=False):
         """
         Args:
@@ -112,7 +113,6 @@ class CSVDataset(Dataset):
         self.stoc_boxes_per_class = torch.tensor(num_of_points)
 
         # calculate weights for balanced loss function
-        beta = 0.999
         class_counts = torch.tensor(num_of_points + num_of_boxes)
         #bl_weights = 1 / class_counts
         bl_weights = (1 - beta)/(1 - torch.pow(beta, class_counts))

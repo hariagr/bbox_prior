@@ -170,6 +170,7 @@ def get_args_parser(add_help=True):
 
     # balance class frequency in the loss function
     parser.add_argument("--balance", action="store_true", help="handle class imbalance problem")
+    parser.add_argument("--beta", default=0.999, type=float, help="parameter for balancing function")
 
     # target normalization
     parser.add_argument(
@@ -228,7 +229,7 @@ def main(args):
         train_points_file = os.path.join(annotations_path, args.train_points_file)
     else:
         train_points_file = None
-    dataset = CSVDataset(args.data_path, train_boxes_file, points_file=train_points_file, transform=T.Compose([T.ToTensor()]))
+    dataset = CSVDataset(args.data_path, train_boxes_file, points_file=train_points_file, beta=args.beta, transform=T.Compose([T.ToTensor()]))
     dataset_val = CSVDataset(args.data_path, os.path.join(annotations_path, args.val_file), transform=T.Compose([T.ToTensor()]))
     dataset_test = CSVDataset(args.data_path, os.path.join(annotations_path, args.test_file), transform=T.Compose([T.ToTensor()]))
     num_classes = dataset.num_classes()
@@ -265,7 +266,7 @@ def main(args):
         bl_weights = dataset.bl_weights.to(device)
         print(f"Setting weights {bl_weights} for handling class imbalance problem")
     else:
-        bl_weights = torch.ones(num_classes).to(device)
+        bl_weights = (1/num_classes)*torch.ones(num_classes).to(device)
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights}

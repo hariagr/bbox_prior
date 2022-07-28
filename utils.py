@@ -24,6 +24,7 @@ def seed_everything(seed=0):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.backends.cudnn.deterministic = cudnn_deterministic
 
+
 # implementation from torchvision.ops box_iou
 # with slight modifications
 def box_ioa(boxes1: Tensor, boxes2: Tensor) -> Tensor:

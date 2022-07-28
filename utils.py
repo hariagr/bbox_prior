@@ -5,10 +5,24 @@ import time
 from collections import defaultdict, deque
 
 import torch
+import random
+import numpy as np
 import torch.distributed as dist
 
 from torch import Tensor
 from torchvision.ops import boxes as box_ops
+
+cudnn_deterministic = True
+
+# enables reproducibilty
+def seed_everything(seed=0):
+    """Fix all random seeds"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = cudnn_deterministic
 
 # implementation from torchvision.ops box_iou
 # with slight modifications

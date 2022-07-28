@@ -118,6 +118,7 @@ def get_args_parser(add_help=True):
     #parser.add_argument(
     #    "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
     #)
+    parser.add_argument("--random-seed", default=0, type=int, help="random seed for reproducibility")
     parser.add_argument("--eval-freq", default=1, type=int, help="evaluation frequency")
     parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=None, type=str, help="path to save outputs")
@@ -206,6 +207,8 @@ def main(args):
     if args.results_dir is not None:
         utils.mkdir(args.results_dir)
 
+    print("Random seed ",args.random_seed)
+    utils.seed_everything(args.random_seed)
     utils.init_distributed_mode(args)
     print(args)
 

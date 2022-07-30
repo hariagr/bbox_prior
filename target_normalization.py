@@ -20,8 +20,8 @@ def cal_tnorm_weights(model, dataloader, device):
     weights = 1 / torch.sqrt(target_normalization['x2']/target_normalization['num'] - torch.pow(target_normalization['x']/target_normalization['num'],2))
 
     print(f"std. dev. of targets are {1/weights}")
-    
-    weights = weights / sum(weights)
+
+    #weights = weights / sum(weights)
     weights = tuple(weights.cpu().numpy())  # (0.29, 0.29, 0.20, 0.20)
 
     model.box_coder.weights = weights  # used while decoding boxes for prediction

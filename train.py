@@ -267,7 +267,7 @@ def main(args):
 
     if args.balance:
         bl_weights = dataset.bl_weights.to(device)
-        print(f"Setting weights {bl_weights} for handling class imbalance problem")
+        print("Setting weights {bl_weights} for handling class imbalance problem")
     else:
         bl_weights = (1/num_classes)*torch.ones(num_classes).to(device)
 

@@ -18,9 +18,6 @@ def cal_tnorm_weights(model, dataloader, device):
     # you can use validation dataset to compute normalization weights
     target_normalization = model.head.regression_head.target_normalization
     weights = 1 / torch.sqrt(target_normalization['x2']/target_normalization['num'] - torch.pow(target_normalization['x']/target_normalization['num'],2))
-
-    print(f"std. dev. of targets are {1/weights}")
-
     #weights = weights / sum(weights)
     weights = tuple(weights.cpu().numpy())  # (0.29, 0.29, 0.20, 0.20)
 
@@ -28,5 +25,6 @@ def cal_tnorm_weights(model, dataloader, device):
     model.head.regression_head.box_coder.weights = weights  # used while encoding boxes for training
     model.head.regression_head.cal_tnorm_weights = False
     print(f"weights for normalizing targets are {weights}")
+    print(f"std. dev. of targets are {1/torch.as_tensor(weights)}")
 
     return model

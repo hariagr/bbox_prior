@@ -284,6 +284,14 @@ def main(args):
         print('Calculating target normalization weights')
         model = cal_tnorm_weights(model, data_loader, device)
 
+    # normalized targets std. dev. (i.e. label std./pre-normalized target std. dev)
+    if args.train_points_file is not None:
+        tstd = 1/torch.as_tensor(model.box_coder.weights)
+        model.bbox_priors["target_width_std"] = model.bbox_priors["logOfwidth_std"]/tstd[2]
+        model.bbox_priors["target_height_std"] = model.bbox_priors["logOfwidth_std"]/tstd[3]
+        model.head.bbox_priors = model.bbox_priors
+        model.head.regression_head.bbox_priors = model.bbox_priors
+
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 

@@ -189,10 +189,11 @@ def get_args_parser(add_help=True):
 
     # parameters for bounding box prior strategy
     parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
-    parser.add_argument("--bbp-coverage", default=1, type=int,
+    parser.add_argument("--bbp-coverage", default=2, type=int,
                         help="(in terms of std.dev.) - maximum wideness of a stochastic box")
-    parser.add_argument("--bbp-sampling-step", default=0.5, type=float,
+    parser.add_argument("--bbp-sampling-step", default=0.2, type=float,
                         help="sampling of stochastic box wideness")
+    parser.add_argument("--bbox-loss", default='smooth_l1', type=str, help="bounding box regression loss function")
 
     return parser
 
@@ -272,7 +273,8 @@ def main(args):
         bl_weights = (1/num_classes)*torch.ones(num_classes).to(device)
 
     print("Creating model")
-    kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights}
+    kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights,
+              "alpha": args.alpha, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step, "bbox_loss": args.bbox_loss}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
 
@@ -282,7 +284,7 @@ def main(args):
 
     if args.target_normalization:
         print('Calculating target normalization weights')
-        model = cal_tnorm_weights(model, data_loader, device)
+        model = cal_tnorm_weights(model, data_loader_val, device)
 
     # normalized targets std. dev. (i.e. label std./pre-normalized target std. dev)
     if args.train_points_file is not None:

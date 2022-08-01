@@ -38,6 +38,9 @@ from eval_mAP_F1 import evaluate as eval_mAP_F1
 from target_normalization import cal_tnorm_weights
 from bbox_priors import cal_bbox_priors
 
+import nvidia_dlprof_pytorch_nvtx
+nvidia_dlprof_pytorch_nvtx.init()
+
 try:
     from torchvision import prototype
 except ImportError:
@@ -195,6 +198,9 @@ def get_args_parser(add_help=True):
                         help="sampling of stochastic box wideness")
     parser.add_argument("--bbox-loss", default='smooth_l1', type=str, help="bounding box regression loss function")
 
+    #argprof
+    parser.add_argument("--DLprof", action="store_true", help="flag to run profiling")
+
     return parser
 
 
@@ -337,7 +343,13 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, scaler)
+        if args.DLprof:
+            with torch.autograd.profiler.emit_nvtx():
+                metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq,
+                                                scaler)
+        else:
+            metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq,
+                                            scaler)
         if args.lr_scheduler == 'reducelronplateau':
             lr_scheduler.step(metric_logger.meters.get('loss').value)
         else:
@@ -357,8 +369,9 @@ def main(args):
 
         # evaluate after every epoch
         if (epoch + 1) % args.eval_freq == 0:
-            #coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
-            eval_val, eval_time, analysis_table = eval_mAP_F1(dataset_val, model, count=epoch, missedLabels=True)  # our evaluation
+            # coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation
+            eval_val, eval_time, analysis_table = eval_mAP_F1(dataset_val, model, count=epoch,
+                                                              missedLabels=True)  # our evaluation
             # evaluate(model, data_loader_test, device=device)
             eval_test, eval_time, at = eval_mAP_F1(dataset_test, model, count=epoch, missedLabels=True)
 
@@ -370,11 +383,13 @@ def main(args):
                 eval_test['epoch'] = epoch
 
                 filename = os.path.join(args.results_dir, args.config + '_val_' + time.strftime('%Y%m%d_%H%M%S',
-                                                                                     time.localtime(start_time)) + '.csv')
+                                                                                                time.localtime(
+                                                                                                    start_time)) + '.csv')
                 eval_val.to_csv(filename, mode='a', header=not os.path.exists(filename))
 
                 filename = os.path.join(args.results_dir, args.config + '_test_' + time.strftime('%Y%m%d_%H%M%S',
-                                                                                      time.localtime(start_time)) + '.csv')
+                                                                                                 time.localtime(
+                                                                                                     start_time)) + '.csv')
                 eval_test.to_csv(filename, mode='a', header=not os.path.exists(filename))
 
     total_time = time.time() - start_time

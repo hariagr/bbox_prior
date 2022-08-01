@@ -202,10 +202,10 @@ class RetinaNetRegressionHead(nn.Module):
 
             # The part of the loss function that is associated with points
             # assumes that the width of stochastic box is equal to mean. Hence, we extend points by mean value
-            stochastic_box = torch.tensor([], device=device)
+            stochastic_box = torch.tensor([], dtype=torch.float64, device=device)
             weights_stbox = torch.tensor([], device=device)
-            beta_stbox = torch.tensor([], device=device)
-            idx_stbox = torch.tensor([], device=device)
+            beta_stbox = torch.tensor([], dtype=torch.float64, device=device)
+            idx_stbox = torch.tensor([], dtype=torch.int64, device=device)
             if targets_per_image['points'].numel() != 0:
                 for label, center in zip(targets_per_image['plabels'], targets_per_image['points']):
                     x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
@@ -223,8 +223,8 @@ class RetinaNetRegressionHead(nn.Module):
                     idx_stbox = torch.cat((idx_stbox, torch.tensor(label, device=device).reshape(1, -1)), 0)
 
             #weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
-            beta_box = torch.ones(targets_per_image['boxes'].shape, device=device)
-            idx_box = -1*torch.ones(targets_per_image['boxes'].shape[0], device=device).reshape(-1, 1)
+            beta_box = torch.ones(targets_per_image['boxes'].shape, dtype=torch.float64, device=device)
+            idx_box = -1*torch.ones(targets_per_image['boxes'].shape[0], dtype=torch.int64, device=device).reshape(-1, 1)
 
             # remember matched_idx has mapping from anchor to boxes and points
             # entries from 0 to N indicates boxes and N+1 to max(matched_idx) indicates points

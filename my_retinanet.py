@@ -214,15 +214,15 @@ class RetinaNetRegressionHead(nn.Module):
                     y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
                     stochastic_box = torch.cat(
                         (stochastic_box, torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)), 0)
-                    weights_stbox = torch.cat((weights_stbox, self.alpha*torch.tensor(
-                        [1, 1, 1 / self.bbox_priors['logOfwidth_std'][label],
-                         1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
+                    #weights_stbox = torch.cat((weights_stbox, self.alpha*torch.tensor(
+                    #    [1, 1, 1 / self.bbox_priors['logOfwidth_std'][label],
+                    #     1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
                     beta_stbox = torch.cat((beta_stbox, torch.tensor(
-                        [1, 1, 1 + torch.pow(self.bbox_priors['target_width_std'][label], 2),
-                         1 + torch.pow(self.bbox_priors['target_height_std'][label], 2)], device=device).reshape(1, -1)), 0)
+                        [1, 1, 1 + self.bbox_priors['target_width_std'][label] ** 2,
+                         1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)), 0)
                     idx_stbox = torch.cat((idx_stbox, torch.tensor(label, device=device).reshape(1, -1)), 0)
 
-            weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
+            #weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             beta_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             idx_box = -1*torch.ones(targets_per_image['boxes'].shape[0], device=device).reshape(-1, 1)
 
@@ -231,7 +231,7 @@ class RetinaNetRegressionHead(nn.Module):
             # Hence, we combine deterministic boxes and stochastic boxes array for computing target regression in one call
             boxes_per_image = torch.cat((targets_per_image['boxes'], stochastic_box))
             labels_per_image = torch.cat((targets_per_image['labels'], targets_per_image['plabels']), 0)
-            weights_per_image = torch.cat((weights_box, weights_stbox), 0)
+            #weights_per_image = torch.cat((weights_box, weights_stbox), 0)
             beta_per_image = torch.cat((beta_box, beta_stbox), 0)
             idx_per_image = torch.cat((idx_box, idx_stbox), 0)
 
@@ -243,7 +243,7 @@ class RetinaNetRegressionHead(nn.Module):
             matched_gt_boxes_per_image = boxes_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             bbox_regression_per_image = bbox_regression_per_image[foreground_idxs_per_image, :]
             anchors_per_image = anchors_per_image[foreground_idxs_per_image, :]
-            weights_per_image = weights_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
+            #weights_per_image = weights_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             beta_per_image = beta_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             idx_per_image = idx_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
 
@@ -271,7 +271,7 @@ class RetinaNetRegressionHead(nn.Module):
                 idx_box = torch.where(idx_per_image == -1)[0]  # determinstic
                 det_loss_per_image[idx_box] = (1/beta_per_image[idx_box]) * det_loss_per_image[idx_box]
                 idx_stbox = torch.where(idx_per_image >= 0)[0]  # stochastic
-                det_loss_per_image[idx_stbox] = self.alpha * (1 / beta_per_image[idx_stbox]) * det_loss_per_image[idx_stbox]
+                det_loss_per_image[idx_stbox] = self.alpha * (1/beta_per_image[idx_stbox]) * det_loss_per_image[idx_stbox]
             elif self.bbox_loss == 'smooth_l1':
                 det_loss_per_image = torch.zeros(bbox_regression_per_image.shape)
                 uidx = torch.unique(idx_per_image)

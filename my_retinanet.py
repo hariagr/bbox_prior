@@ -267,11 +267,13 @@ class RetinaNetRegressionHead(nn.Module):
                 if self.bbox_loss == 'l2':
                     det_loss_per_image = torch.nn.functional.mse_loss(bbox_regression_per_image, target_regression,
                                                              size_average=False, reduce=False, reduction='none')
-                # separate determinstic and stochastic box losses
-                idx_box = torch.where(idx_per_image == -1)[0]  # determinstic
-                det_loss_per_image[idx_box] = (1/beta_per_image[idx_box]) * det_loss_per_image[idx_box]
-                idx_stbox = torch.where(idx_per_image >= 0)[0]  # stochastic
-                det_loss_per_image[idx_stbox] = self.alpha * (1/beta_per_image[idx_stbox]) * det_loss_per_image[idx_stbox]
+                if targets_per_image['points'].numel() != 0:
+                    # considering beta is one for deterministic boxes
+                    #idx_box = torch.where(idx_per_image == -1)[0]  # determinstic
+                    #det_loss_per_image[idx_box] = (1/beta_per_image[idx_box]) * det_loss_per_image[idx_box]
+                    idx_stbox = torch.where(idx_per_image >= 0)[0]  # stochastic
+                    det_loss_per_image[idx_stbox] = self.alpha * (1/beta_per_image[idx_stbox]) * det_loss_per_image[idx_stbox]
+
             elif self.bbox_loss == 'smooth_l1':
                 det_loss_per_image = torch.zeros(bbox_regression_per_image.shape)
                 uidx = torch.unique(idx_per_image)

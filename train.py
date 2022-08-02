@@ -46,6 +46,7 @@ try:
 except ImportError:
     prototype = None
 
+torch.backends.cudnn.benchmark = True
 
 def get_dataset(name, image_set, transform, data_path):
     paths = {"coco": (data_path, get_coco, 91), "coco_kp": (data_path, get_coco_kp, 2)}

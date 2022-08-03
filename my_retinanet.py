@@ -275,7 +275,7 @@ class RetinaNetRegressionHead(nn.Module):
                     det_loss_per_image[idx_stbox] = self.alpha * (1/beta_per_image[idx_stbox]) * det_loss_per_image[idx_stbox]
 
             elif self.bbox_loss == 'smooth_l1':
-                det_loss_per_image = torch.zeros(bbox_regression_per_image.shape)
+                det_loss_per_image = torch.zeros(bbox_regression_per_image.shape, device=device)
                 uidx = torch.unique(idx_per_image)
                 for idx in uidx:
                     idx_box = torch.where(idx_per_image == idx)[0]

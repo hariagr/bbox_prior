@@ -266,11 +266,11 @@ def main(args):
     )
 
     data_loader_val = torch.utils.data.DataLoader(
-        dataset_val, batch_size=1, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+        dataset_val, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
     )
 
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, sampler=test_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+        dataset_test, batch_size=args.batch_size, sampler=test_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
     )
 
     if args.balance:
@@ -287,11 +287,11 @@ def main(args):
 
     if args.train_points_file is not None:
         print('Calculating box priors')
-        model = cal_bbox_priors(model, data_loader_val, device)
+        model = cal_bbox_priors(model, data_loader, device)
 
-    if args.target_normalization:
+    if args.target_normalization:  # should be on training dataset to consider stochastic boxes
         print('Calculating target normalization weights')
-        model = cal_tnorm_weights(model, data_loader_val, device)
+        model = cal_tnorm_weights(model, data_loader, device)
 
     # normalized targets std. dev. (i.e. label std./pre-normalized target std. dev)
     if args.train_points_file is not None:

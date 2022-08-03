@@ -377,8 +377,8 @@ def main(args):
             eval_test, eval_time, at = eval_mAP_F1(dataset_test, model, count=epoch, missedLabels=True)
 
             if args.results_dir is not None:
-                filename = os.path.join(args.results_dir, args.config + '_val_' + str(epoch) + '.csv')
-                analysis_table.to_csv(filename, mode='a', header=not os.path.exists(filename))
+                #filename = os.path.join(args.results_dir, args.config + '_val_' + str(epoch) + '.csv')
+                #analysis_table.to_csv(filename, mode='a', header=not os.path.exists(filename))
 
                 eval_val['epoch'] = epoch
                 eval_test['epoch'] = epoch

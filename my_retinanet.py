@@ -283,7 +283,7 @@ class RetinaNetRegressionHead(nn.Module):
                         det_loss_per_image[idx_box, col] = torch.nn.functional.smooth_l1_loss(bbox_regression_per_image[idx_box, col], target_regression[idx_box, col],
                                                                  size_average=False, reduce=False, reduction='none', beta=beta_per_image[idx_box[0], col])
                     if idx != -1:
-                        det_loss_per_image = self.alpha * det_loss_per_image
+                        det_loss_per_image[idx_box] = self.alpha * det_loss_per_image[idx_box]
             else:
                 print(f"{self.bbox_loss} is not implemented")
 

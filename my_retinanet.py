@@ -520,27 +520,33 @@ class RetinaNet(nn.Module):
                 n = self.bbox_prior_coverage
                 pmatch_quality_matrix = torch.zeros(targets_per_image['points'].shape[0], anchors_per_image.shape[0],
                                                     device=device)
-                for ws in torch.linspace(-n, n,
-                                         int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step))) + 1,
-                                         device=device):
-                    for hs in torch.linspace(-n, n,
-                                             int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step))) + 1,
-                                             device=device):
-                        # define width and height
-                        stochastic_box = torch.tensor([], device=device)
-                        for label, center in zip(targets_per_image['plabels'], targets_per_image['points']):
-                            x1 = center[0] - 0.5 * (
-                                    self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
-                            x2 = center[0] + 0.5 * (
-                                    self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
-                            y1 = center[1] - 0.5 * (
-                                    self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
-                            y2 = center[1] + 0.5 * (
-                                    self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
-                            stochastic_box = torch.cat(
-                                (stochastic_box, torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)), 0)
-                        pmatch_quality_matrix = torch.maximum(pmatch_quality_matrix,
-                                                              box_ops.box_iou(stochastic_box, anchors_per_image))
+                xs = torch.linspace(-n, n, int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step))) + 1, device=device)
+                ws, hs = torch.meshgrid(xs, xs, indexing="ij")
+
+                for idx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
+                    x1 = center[0] - 0.5 * (
+                                self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
+                    x2 = center[0] + 0.5 * (
+                                self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
+                    y1 = center[1] - 0.5 * (
+                                self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
+                    y2 = center[1] + 0.5 * (
+                                self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
+
+                    # create all stochastic boxes
+                    stochastic_boxes = torch.stack([x1.flatten(), y1.flatten(), x2.flatten(), y2.flatten()], 1)
+
+                    # find all anchors lies inside the outermost stochastic box
+                    outer_box = stochastic_boxes[-1, :].reshape(1, -1)
+                    all_inner_matched_idx = self.proposal_matcher(utils.box_ioa(outer_box, anchors[0]))
+                    all_inner_anchors = anchors[0][all_inner_matched_idx >= 0]
+
+                    # compute IOU between stochastic boxes and anchors
+                    quality_matrix = box_ops.box_iou(stochastic_boxes, all_inner_anchors)
+
+                    # maximum over anchors: idea is to allocate one set of anchors for one point annotation irrespective of stochastic box
+                    quality_matrix = torch.max(quality_matrix, 0)[0]
+                    pmatch_quality_matrix[idx, all_inner_matched_idx >= 0] = quality_matrix.reshape(1, -1)
 
                 match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
                 bmatched_idxs = self.proposal_matcher(match_quality_matrix)

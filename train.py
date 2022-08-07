@@ -37,9 +37,13 @@ import transforms as T
 from eval_mAP_F1 import evaluate as eval_mAP_F1
 from target_normalization import cal_tnorm_weights
 from bbox_priors import cal_bbox_priors
+from cal_bbox_prior_hp import cal_bbox_prior_hp
 
-import nvidia_dlprof_pytorch_nvtx
-nvidia_dlprof_pytorch_nvtx.init()
+import platform
+
+if not platform.system().lower().startswith('dar'):
+    import nvidia_dlprof_pytorch_nvtx
+    nvidia_dlprof_pytorch_nvtx.init()
 
 try:
     from torchvision import prototype
@@ -74,7 +78,7 @@ def get_args_parser(add_help=True):
 
     parser = argparse.ArgumentParser(description="PyTorch Detection Training", add_help=add_help)
 
-    parser.add_argument("--data-path", default="data/UMID/", type=str, help="dataset path")
+    parser.add_argument("--data-path", default="../data/UMID/", type=str, help="dataset path")
     #parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
     parser.add_argument("--train-file", default="train.csv", type=str, help="box annotations for training")
     parser.add_argument("--train-points-file", default=None, type=str, help="point annotations for training")
@@ -289,6 +293,10 @@ def main(args):
         print('Calculating box priors')
         model = cal_bbox_priors(model, data_loader, device)
 
+    if args.bbp_sampling_step == -1:
+        print('Calculating bbox prior hyperparameter')
+        model = cal_bbox_prior_hp(model, data_loader, device)
+
     if args.target_normalization:  # should be on training dataset to consider stochastic boxes
         print('Calculating target normalization weights')
         model = cal_tnorm_weights(model, data_loader, device)
@@ -355,7 +363,7 @@ def main(args):
             lr_scheduler.step(metric_logger.meters.get('loss').value)
         else:
             lr_scheduler.step()
-        if args.output_dir is not None:
+        if args.output_dir is not None and (epoch + 1) % args.eval_freq == 0:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
                 "optimizer": optimizer.state_dict(),

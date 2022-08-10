@@ -202,28 +202,27 @@ class RetinaNetRegressionHead(nn.Module):
 
             # The part of the loss function that is associated with points
             # assumes that the width of stochastic box is equal to mean. Hence, we extend points by mean value
-            stochastic_box = torch.tensor([], device=device)
+            stochastic_box = torch.zeros((targets_per_image['points'].numel(), 4), device=device)
             weights_stbox = torch.tensor([], device=device)
-            beta_stbox = torch.tensor([], device=device)
-            idx_stbox = torch.tensor([], dtype=torch.int64, device=device)
+            beta_stbox = torch.zeros((targets_per_image['points'].numel(), 4), device=device)
+            idx_stbox = torch.zeros((targets_per_image['points'].numel(), 1), dtype=torch.int64, device=device)
             if targets_per_image['points'].numel() != 0:
-                for label, center in zip(targets_per_image['plabels'], targets_per_image['points']):
+                for indx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
                     x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
                     x2 = center[0] + 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
                     y1 = center[1] - 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
                     y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
-                    stochastic_box = torch.cat(
-                        (stochastic_box, torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)), 0)
+                    stochastic_box[indx] = torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)
                     #weights_stbox = torch.cat((weights_stbox, self.alpha*torch.tensor(
                     #    [1, 1, 1 / self.bbox_priors['logOfwidth_std'][label],
                     #     1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
-                    idx_stbox = torch.cat((idx_stbox, torch.tensor(label, device=device).reshape(1, -1)), 0)
+                    idx_stbox[indx] = torch.tensor(label, device=device).reshape(1, -1)
                     if not self.cal_tnorm_weights:
-                        beta_stbox = torch.cat((beta_stbox, torch.tensor(
+                        beta_stbox[indx] = torch.tensor(
                             [1, 1, 1 + self.bbox_priors['target_width_std'][label] ** 2,
-                             1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)), 0)
+                             1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)
                     else:
-                        beta_stbox = torch.cat((beta_stbox, torch.tensor([1, 1, 1, 1], device=device).reshape(1, -1)), 0)
+                        beta_stbox[indx] = torch.tensor([1, 1, 1, 1], device=device).reshape(1, -1)
 
             #weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             beta_box = torch.ones(targets_per_image['boxes'].shape, device=device)

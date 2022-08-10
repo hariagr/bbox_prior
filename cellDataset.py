@@ -58,26 +58,30 @@ class CSVDataset(Dataset):
         except:
             warnings.warn('invalid Group CSV class file. Running model without group annotations!!')
 
-        # csv with img_path, x1, y1, x2, y2, class_name
-        try:
-            with self._open_for_csv(self.train_file) as file:
-                if csv.Sniffer().has_header(file.read(1024)):  # if header is present
-                    file.seek(0)
-                    next(file)  # skip header
-                self.box_data = self._read_annotations(csv.reader(file, delimiter=','), self.classes, self.gclasses, self.mclass)
-        except ValueError as e:
-            raise (ValueError('invalid CSV annotations file: {}: {}'.format(self.train_file, e)))
-        self.image_names = list(self.box_data.keys())
+        self.image_names = []
+        if self.train_file is not None:
+            # csv with img_path, x1, y1, x2, y2, class_name
+            try:
+                with self._open_for_csv(self.train_file) as file:
+                    if csv.Sniffer().has_header(file.read(1024)):  # if header is present
+                        file.seek(0)
+                        next(file)  # skip header
+                    self.box_data = self._read_annotations(csv.reader(file, delimiter=','), self.classes, self.gclasses, self.mclass)
+            except ValueError as e:
+                raise (ValueError('invalid CSV annotations file: {}: {}'.format(self.train_file, e)))
+            self.image_names = list(self.box_data.keys())
 
-        # # calculate number of cells per class
-        train_data = pd.read_csv(self.train_file)
-        train_cell_count = train_data.groupby('label')['image'].count()
+            # # calculate number of cells per class
+            train_data = pd.read_csv(self.train_file)
+            train_cell_count = train_data.groupby('label')['image'].count()
 
-        print("counts of ground truth boxes:")
-        num_of_boxes = np.empty(self.num_classes(), dtype=int)
-        for key, value in self.classes.items():
-            num_of_boxes[value] = train_cell_count[key]
-            print("%s: %d" % (key, train_cell_count[key]))
+            print("counts of ground truth boxes:")
+            num_of_boxes = np.empty(self.num_classes(), dtype=int)
+            for key, value in self.classes.items():
+                num_of_boxes[value] = train_cell_count[key]
+                print("%s: %d" % (key, train_cell_count[key]))
+        else:
+            num_of_boxes = np.zeros(self.num_classes(), dtype=int)
 
         # csv with img_path, x1, y1, x2, y2, class_name for point annotations
         if self.points_file is not None:
@@ -205,8 +209,9 @@ class CSVDataset(Dataset):
     def load_annotations(self, image_index):
         # get ground truth annotations
         annotation_list, points_list = None, None
-        if self.image_names[image_index] in self.box_data.keys():
-            annotation_list = self.box_data[self.image_names[image_index]]
+        if self.train_file is not None:
+            if self.image_names[image_index] in self.box_data.keys():
+                annotation_list = self.box_data[self.image_names[image_index]]
         if self.points_file is not None:
             if self.image_names[image_index] in self.points_data.keys():
                 points_list = self.points_data[self.image_names[image_index]]

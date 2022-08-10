@@ -80,7 +80,7 @@ def get_args_parser(add_help=True):
 
     parser.add_argument("--data-path", default="../data/UMID/", type=str, help="dataset path")
     #parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
-    parser.add_argument("--train-file", default="train.csv", type=str, help="box annotations for training")
+    parser.add_argument("--train-file", default=None, type=str, help="box annotations for training")
     parser.add_argument("--train-points-file", default=None, type=str, help="point annotations for training")
     parser.add_argument("--val-file", default="val.csv", type=str, help="annotations for validation")
     parser.add_argument("--test-file", default="test.csv", type=str, help="annotations for validation")
@@ -239,7 +239,10 @@ def main(args):
 
     annotations_path = os.path.join(args.data_path + 'annotations')
     print("Initializing training and validation dataset classes")
-    train_boxes_file = os.path.join(annotations_path, args.train_file)
+    if args.train_file is not None:
+        train_boxes_file = os.path.join(annotations_path, args.train_file)
+    else:
+        train_boxes_file = None
     if args.train_points_file is not None:
         train_points_file = os.path.join(annotations_path, args.train_points_file)
     else:
@@ -291,7 +294,10 @@ def main(args):
 
     if args.train_points_file is not None:
         print('Calculating box priors')
-        model = cal_bbox_priors(model, data_loader, device)
+        if args.train_file is None:
+            model = cal_bbox_priors(model, data_loader_val, device)
+        else:
+            model = cal_bbox_priors(model, data_loader, device)
 
     if args.bbp_sampling_step == -1:
         print('Calculating bbox prior hyperparameter')

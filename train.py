@@ -96,7 +96,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--lr",
-        default=0.02,
+        default=0.01,
         type=float,
         help="initial learning rate, 0.02 is the default value for training on 8 gpus and 2 images_per_gpu",
     )
@@ -127,8 +127,8 @@ def get_args_parser(add_help=True):
     #    "--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma (multisteplr scheduler only)"
     #)
     parser.add_argument("--random-seed", default=0, type=int, help="random seed for reproducibility")
-    parser.add_argument("--eval-freq", default=1, type=int, help="evaluation frequency")
-    parser.add_argument("--print-freq", default=20, type=int, help="print frequency")
+    parser.add_argument("--eval-freq", default=10, type=int, help="evaluation frequency")
+    parser.add_argument("--print-freq", default=1000, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=None, type=str, help="path to save outputs")
     parser.add_argument("--config", default=None, type=str, help="configuration name used to set filename of the csv files")
     parser.add_argument("--results-dir", default=None, type=str, help="path to save csv result files")

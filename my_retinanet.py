@@ -217,11 +217,13 @@ class RetinaNetRegressionHead(nn.Module):
                     #weights_stbox = torch.cat((weights_stbox, self.alpha*torch.tensor(
                     #    [1, 1, 1 / self.bbox_priors['logOfwidth_std'][label],
                     #     1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
+                    idx_stbox = torch.cat((idx_stbox, torch.tensor(label, device=device).reshape(1, -1)), 0)
                     if not self.cal_tnorm_weights:
                         beta_stbox = torch.cat((beta_stbox, torch.tensor(
                             [1, 1, 1 + self.bbox_priors['target_width_std'][label] ** 2,
                              1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)), 0)
-                        idx_stbox = torch.cat((idx_stbox, torch.tensor(label, device=device).reshape(1, -1)), 0)
+                    else:
+                        beta_stbox = torch.cat((beta_stbox, torch.tensor([1, 1, 1, 1], device=device).reshape(1, -1)), 0)
 
             #weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             beta_box = torch.ones(targets_per_image['boxes'].shape, device=device)

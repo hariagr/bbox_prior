@@ -203,9 +203,9 @@ class RetinaNetRegressionHead(nn.Module):
             # The part of the loss function that is associated with points
             # assumes that the width of stochastic box is equal to mean. Hence, we extend points by mean value
             stochastic_box = torch.zeros((targets_per_image['points'].numel(), 4), device=device)
-            weights_stbox = torch.tensor([], device=device)
+            #weights_stbox = torch.tensor([], device=device)
             beta_stbox = torch.zeros((targets_per_image['points'].numel(), 4), device=device)
-            idx_stbox = torch.zeros((targets_per_image['points'].numel(), 1), dtype=torch.int64, device=device)
+            idx_stbox = torch.zeros((targets_per_image['points'].numel(), 1), dtype=torch.int32, device=device)
             if targets_per_image['points'].numel() != 0:
                 for indx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
                     x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
@@ -226,7 +226,7 @@ class RetinaNetRegressionHead(nn.Module):
 
             #weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             beta_box = torch.ones(targets_per_image['boxes'].shape, device=device)
-            idx_box = -1*torch.ones(targets_per_image['boxes'].shape[0], dtype=torch.int64, device=device).reshape(-1, 1)
+            idx_box = -1*torch.ones(targets_per_image['boxes'].shape[0], dtype=torch.int32, device=device).reshape(-1, 1)
 
             # remember matched_idx has mapping from anchor to boxes and points
             # entries from 0 to N indicates boxes and N+1 to max(matched_idx) indicates points
@@ -522,7 +522,7 @@ class RetinaNet(nn.Module):
                 n = self.bbox_prior_coverage
                 pmatch_quality_matrix = torch.zeros(targets_per_image['points'].shape[0], anchors_per_image.shape[0],
                                                     device=device)
-                xs = torch.linspace(-n, n, int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step))) + 1, device=device)
+                xs = torch.linspace(-n, n, int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step, device=device))) + 1, device=device)
                 ws, hs = torch.meshgrid(xs, xs, indexing="ij")
 
                 for idx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):

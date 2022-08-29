@@ -8,6 +8,7 @@ import csv
 import warnings
 import pandas as pd
 import os
+import cv2
 
 class CSVDataset(Dataset):
     """CSV dataset."""
@@ -203,7 +204,8 @@ class CSVDataset(Dataset):
 
     def load_image(self, image_index):
         # print(self.image_names[image_index])
-        img = Image.open(self.image_folder + self.image_names[image_index])
+        # img = Image.open(self.image_folder + self.image_names[image_index])
+        img = cv2.imread(self.image_folder + self.image_names[image_index])
         return img
 
     def load_annotations(self, image_index):

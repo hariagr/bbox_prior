@@ -1,7 +1,7 @@
 import torch
 
 
-def cal_tnorm_weights(model, dataloader, device):
+def cal_tnorm_weights(model, dataloader, device, scaler=None):
 
     model.head.regression_head.cal_tnorm_weights = True
     model.train()
@@ -9,7 +9,8 @@ def cal_tnorm_weights(model, dataloader, device):
         try:
             images = list(image.to(device, non_blocking=True) for image in images)
             targets = [{k: v.to(device, non_blocking=True) for k, v in t.items()} for t in targets]
-            model(images, targets)
+            with torch.cuda.amp.autocast(enabled=scaler is not None):
+                model(images, targets)
         except Exception as e:
             print(e)
             continue

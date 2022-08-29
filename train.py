@@ -303,9 +303,11 @@ def main(args):
         print('Calculating bbox prior hyperparameter')
         model = cal_bbox_prior_hp(model, data_loader, device)
 
+    scaler = torch.cuda.amp.GradScaler() if args.amp else None
+
     if args.target_normalization:  # should be on training dataset to consider stochastic boxes
         print('Calculating target normalization weights')
-        model = cal_tnorm_weights(model, data_loader, device)
+        model = cal_tnorm_weights(model, data_loader, device, scaler)
 
     # normalized targets std. dev. (i.e. label std./pre-normalized target std. dev)
     if args.train_points_file is not None:
@@ -326,8 +328,6 @@ def main(args):
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
-    scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
     args.lr_scheduler = args.lr_scheduler.lower()
     if args.lr_scheduler == "multisteplr":

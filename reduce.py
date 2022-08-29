@@ -33,7 +33,7 @@ if __name__ == '__main__':
         rd_file = csv.reader(rd_file)
         with open('reduced_train_points_10.csv', 'a') as trn_file:
             writer = csv.writer(trn_file)
-            writer.writerow(['image', 'xmin', 'ymin', 'xmax', 'ymax','label'])
+            writer.writerow(['image', 'xmin', 'ymin', 'xmax', 'ymax', 'label'])
             for line in rd_file:
                 if line[0] in reduced and line[0] != 'image':
                     xx = str(float(line[1])+(float(line[3])-float(line[1]))/2)

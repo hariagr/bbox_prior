@@ -179,7 +179,7 @@ def get_args_parser(add_help=True):
 
     # balance class frequency in the loss function
     parser.add_argument("--balance", action="store_true", help="handle class imbalance problem")
-    parser.add_argument("--beta", default=0.999, type=float, help="parameter for balancing function")
+    parser.add_argument("--beta", default=0.99, type=float, help="parameter for balancing function")
 
     # target normalization
     parser.add_argument(
@@ -219,7 +219,7 @@ def main(args):
     if args.results_dir is not None:
         utils.mkdir(args.results_dir)
 
-    print("Random seed ",args.random_seed)
+    print("Random seed ", args.random_seed)
     utils.seed_everything(args.random_seed)
     utils.init_distributed_mode(args)
     print(args)
@@ -269,15 +269,15 @@ def main(args):
         train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, args.batch_size, drop_last=False)
 
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_sampler=train_batch_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+        dataset, batch_sampler=train_batch_sampler, num_workers=args.workers, collate_fn=utils.collate_fn, pin_memory=True,
     )
 
     data_loader_val = torch.utils.data.DataLoader(
-        dataset_val, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+        dataset_val, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn, pin_memory=True,
     )
 
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=args.batch_size, sampler=test_sampler, num_workers=args.workers, collate_fn=utils.collate_fn
+        dataset_test, batch_size=args.batch_size, sampler=test_sampler, num_workers=args.workers, collate_fn=utils.collate_fn, pin_memory=True,
     )
 
     if args.balance:
@@ -314,6 +314,7 @@ def main(args):
         model.bbox_priors["target_height_std"] = model.bbox_priors["logOfwidth_std"]/tstd[3]
         model.head.bbox_priors = model.bbox_priors
         model.head.regression_head.bbox_priors = model.bbox_priors
+        print(model.bbox_priors)
 
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

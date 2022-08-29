@@ -49,7 +49,8 @@ class ToTensor(nn.Module):
     def forward(
         self, image: Tensor, target: Optional[Dict[str, Tensor]] = None
     ) -> Tuple[Tensor, Optional[Dict[str, Tensor]]]:
-        image = F.pil_to_tensor(image)
+        #image = F.pil_to_tensor(image)
+        image = F.to_tensor(image)
         image = F.convert_image_dtype(image)
         return image, target
 

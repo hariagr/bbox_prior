@@ -7,8 +7,8 @@ def cal_tnorm_weights(model, dataloader, device):
     model.train()
     for images, targets in dataloader:
         try:
-            images = list(image.to(device) for image in images)
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            images = list(image.to(device, non_blocking=True) for image in images)
+            targets = [{k: v.to(device, non_blocking=True) for k, v in t.items()} for t in targets]
             model(images, targets)
         except Exception as e:
             print(e)
@@ -17,7 +17,7 @@ def cal_tnorm_weights(model, dataloader, device):
     # Naive approach (may fails for a very large number of objects in the dataset)
     # you can use validation dataset to compute normalization weights
     target_normalization = model.head.regression_head.target_normalization
-    weights = 1 / torch.sqrt(target_normalization['x2']/target_normalization['num'] - torch.pow(target_normalization['x']/target_normalization['num'],2))
+    weights = 1 / torch.sqrt(target_normalization['x2']/target_normalization['num'] - torch.pow(target_normalization['x']/target_normalization['num'], 2))
     #weights = weights / sum(weights)
     weights = tuple(weights.cpu().numpy())  # (0.29, 0.29, 0.20, 0.20)
 

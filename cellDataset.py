@@ -9,7 +9,7 @@ import warnings
 import pandas as pd
 import os
 #import cv2
-import pyvips
+#import pyvips
 
 class CSVDataset(Dataset):
     """CSV dataset."""
@@ -205,10 +205,11 @@ class CSVDataset(Dataset):
 
     def load_image(self, image_index):
         # print(self.image_names[image_index])
-        # img = Image.open(self.image_folder + self.image_names[image_index])
+        img = Image.open(self.image_folder + self.image_names[image_index])
         #img = cv2.imread(self.image_folder + self.image_names[image_index])
-        img = pyvips.Image.new_from_file(self.image_folder + self.image_names[image_index])
-        img = img.numpy()
+        # img = pyvips.Image.new_from_file(self.image_folder + self.image_names[image_index])
+        # mem_img = img.write_to_memory()
+        # img = np.fromstring(mem_img, dtype=np.uint8).reshape(img.width, img.height, 3)
         return img
 
     def load_annotations(self, image_index):

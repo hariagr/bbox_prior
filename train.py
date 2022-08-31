@@ -412,6 +412,7 @@ def main(args):
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print(f"Training time {total_time_str}")
 
+    return total_time
 
 if __name__ == "__main__":
     args = get_args_parser().parse_args()

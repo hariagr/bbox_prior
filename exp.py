@@ -39,6 +39,9 @@ def get_args_parser(add_help=True):
         "-j", "--workers", default=4, type=int, metavar="N", help="number of data loading workers (default: 4)"
     )
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
+    parser.add_argument("--train-file", default=None, type=str, help="box annotations for training")
+    parser.add_argument("--config", default=None, type=str,
+                        help="configuration name used to set filename of the csv files")
 
     return parser
 
@@ -55,12 +58,12 @@ def tune_batch_size(args):
 
     # experiment 0: batch size, learning rate,
     batch_sizes = [2, 4, 8, 16]
-    train_file = 'train_usd50_wl5.csv'
-    config = 'usd50_wl5_'
+    train_file = args.train_file  #'train_usd50_wl5.csv'
+    config = args.config  #'usd50_wl5_'
 
     for batch_size in batch_sizes:
         args = ['--data-path', data_path, '--train-file', train_file, '--results-dir', results_dir,
-                '--config', config + '_' + str(batch_size),
+                '--config', config + '_b' + str(batch_size),
                 '--bbox-loss', bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
                 '--epoch', str(epochs), '--lr', str(lr), '--beta', str(beta),
                 '--amp', '--balance', '--target-normalization', '--device', device]

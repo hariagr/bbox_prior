@@ -86,7 +86,7 @@ def baseline(args):
                 '--config', config + '_b' + str(batch_size),
                 '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
                 '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
-                '--amp', '--balance', '--target-normalization', '--device', device]
+                '--amp', '--balance', '--target-normalization', '--device', device, '--eval-freq', str(epochs)]
 
         old_sys_argv = sys.argv
         sys.argv = [old_sys_argv[0]] + args

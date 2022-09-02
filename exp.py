@@ -43,8 +43,8 @@ def get_args_parser(add_help=True):
     parser.add_argument("--train-file", default=None, type=str, help="box annotations for training")
     parser.add_argument("--config", default=None, type=str,
                         help="configuration name used to set filename of the csv files")
-    parser.add_argument("--tune_batch_size", dest="", help="", action="store_true")
-    parser.add_argument("--baseline", dest="", help="", action="store_true")
+    parser.add_argument("--tune-batch-size", dest="tune_batch_size", help="", action="store_true")
+    parser.add_argument("--baseline", dest="baseline", help="", action="store_true")
 
     return parser
 
@@ -96,6 +96,7 @@ def baseline(args):
 
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
+    print(args)
     args.data_path = '../data/USD/'
     args.results_dir = '../results/'
     args.beta = 0.99

@@ -1,6 +1,7 @@
 from train import main as trainfunc
 from train import get_args_parser as trainfunc_args_parser
 import sys
+import numpy as np
 
 # experiment 1 - Baseline (All boxes) -- upper bound
 # sub experiments (a) GT_loss: L1, L2, smooth-L1
@@ -42,19 +43,16 @@ def get_args_parser(add_help=True):
     parser.add_argument("--train-file", default=None, type=str, help="box annotations for training")
     parser.add_argument("--config", default=None, type=str,
                         help="configuration name used to set filename of the csv files")
+    parser.add_argument("--tune_batch_size", dest="", help="", action="store_true")
+    parser.add_argument("--baseline", dest="", help="", action="store_true")
 
     return parser
 
 # through this experiment, we intend to find batch size and epoch values
 def tune_batch_size(args):
-    data_path = '../data/USD/'
-    results_dir = '../results/'
     epochs = 80
-    lr = 0.01
     workers = args.workers
-    beta = 0.99
     device = args.device
-    bbox_loss = 'l1'
 
     # experiment 0: batch size, learning rate,
     batch_sizes = [2, 4, 8, 16]
@@ -62,10 +60,10 @@ def tune_batch_size(args):
     config = args.config  #'usd50_wl5_'
 
     for batch_size in batch_sizes:
-        args = ['--data-path', data_path, '--train-file', train_file, '--results-dir', results_dir,
+        args = ['--data-path', args.data_path, '--train-file', train_file, '--results-dir', args.results_dir,
                 '--config', config + '_b' + str(batch_size),
-                '--bbox-loss', bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
-                '--epoch', str(epochs), '--lr', str(lr), '--beta', str(beta),
+                '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
+                '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
                 '--amp', '--balance', '--target-normalization', '--device', device]
 
         old_sys_argv = sys.argv
@@ -74,7 +72,43 @@ def tune_batch_size(args):
         training_time = trainfunc(args)
         print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
+def baseline(args):
+    epochs = 50
+    batch_size = 8
+    workers = args.workers
+    device = args.device
+
+    wlimages = np.array([5, 20, 40, 60, 80])
+    for wl in wlimages:
+        train_file = 'train_usd50_wl' + str(wl) + '.csv'
+        config = 'baseline_usd50_wl' + str(wl)
+        args = ['--data-path', args.data_path, '--train-file', train_file, '--results-dir', args.results_dir,
+                '--config', config + '_b' + str(batch_size),
+                '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
+                '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
+                '--amp', '--balance', '--target-normalization', '--device', device]
+
+        old_sys_argv = sys.argv
+        sys.argv = [old_sys_argv[0]] + args
+        args = trainfunc_args_parser().parse_args()
+        training_time = trainfunc(args)
+        print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
-    tune_batch_size(args)
+    args.data_path = '../data/USD/'
+    args.results_dir = '../results/'
+    args.beta = 0.99
+    args.bbox_loss = 'l1'
+    args.lr = 0.01
+
+    if args.tune_batch_size:
+        tune_batch_size(args)
+
+    if args.baseline:
+        baseline(args)
+
+
+
+
+

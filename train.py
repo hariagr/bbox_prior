@@ -197,7 +197,7 @@ def get_args_parser(add_help=True):
 
     # parameters for bounding box prior strategy
     parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
-    parser.add_argument("--bbp-coverage", default=2, type=int,
+    parser.add_argument("--bbp-coverage", default=2, type=float,
                         help="(in terms of std.dev.) - maximum wideness of a stochastic box")
     parser.add_argument("--bbp-sampling-step", default=0.2, type=float,
                         help="sampling of stochastic box wideness")

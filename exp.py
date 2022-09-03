@@ -111,7 +111,7 @@ def bboxprior_for_classification(args):
                 '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
                 '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
                 '--amp', '--balance', '--target-normalization', '--device', device, '--eval-freq', str(10),
-                '--alpha', str(0), '--bbp-coverage', str(0.25), '--bbp_sampling_step', str(0.05)]
+                '--alpha', str(0), '--bbp-coverage', str(0.25), '--bbp-sampling-step', str(0.05)]
 
         old_sys_argv = sys.argv
         sys.argv = [old_sys_argv[0]] + args

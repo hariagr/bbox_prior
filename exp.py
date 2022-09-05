@@ -46,6 +46,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--tune-batch-size", dest="tune_batch_size", help="", action="store_true")
     parser.add_argument("--baseline", dest="baseline", help="", action="store_true")
     parser.add_argument("--bboxprior-for-classification", dest="bboxprior_for_classification", help="", action="store_true")
+    parser.add_argument("--tune-bbp-coverage", dest="tune_bbp_coverage", help="", action="store_true")
     return parser
 
 # through this experiment, we intend to find batch size and epoch values
@@ -139,6 +140,36 @@ def bboxprior_for_classification(args):
         training_time = trainfunc(args)
         print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
+def tune_bbp_coverage(args):
+    epochs = 50
+    batch_size = 8
+    workers = args.workers
+    device = args.device
+
+    wlimages = np.array([5, 10, 20])
+    ptimages = np.array([10, 20, 30])
+    bbp_coverage = np.array([0.5, 0.25, 0.125, 0])
+    for wl in wlimages:
+        for pt in ptimages:
+            wl_file = 'train_usd50_wl' + str(wl) + '.csv'
+            pt_file = 'train_usd50_pt' + str(pt) + '.csv'
+            for cov in bbp_coverage:
+                config = 'bp_for_cls_usd50_wl' + str(wl) + '_pt' + str(pt) + '_cov' + str(cov)
+                args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
+                        '--config', config, '--train-points-file', pt_file,
+                        '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
+                        '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
+                        '--amp', '--balance', '--target-normalization', '--device', device, '--eval-freq', str(epochs),
+                        '--alpha', str(0), '--bbp-coverage', str(cov), '--bbp-sampling-step', str(0.05)]
+
+                old_sys_argv = sys.argv
+                sys.argv = [old_sys_argv[0]] + args
+                args = trainfunc_args_parser().parse_args()
+                training_time = trainfunc(args)
+                print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
+
+
+
 
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
@@ -158,6 +189,8 @@ if __name__ == "__main__":
     if args.bboxprior_for_classification:
         bboxprior_for_classification(args)
 
+    if args.tune_bbox_coverage:
+        tune_bbp_coverage(args)
 
 
 

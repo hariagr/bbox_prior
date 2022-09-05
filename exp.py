@@ -110,7 +110,27 @@ def bboxprior_for_classification(args):
                 '--config', config, '--train-points-file', pt_file,
                 '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
                 '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
-                '--amp', '--balance', '--target-normalization', '--device', device, '--eval-freq', str(10),
+                '--amp', '--balance', '--target-normalization', '--device', device, '--eval-freq', str(epochs),
+                '--alpha', str(0), '--bbp-coverage', str(0.25), '--bbp-sampling-step', str(0.05)]
+
+        old_sys_argv = sys.argv
+        sys.argv = [old_sys_argv[0]] + args
+        args = trainfunc_args_parser().parse_args()
+        training_time = trainfunc(args)
+        print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
+
+    wl = 5
+    ptimages = np.array([10, 30, 50, 70])
+    for pt in ptimages:
+        wl_file = 'train_usd50_wl' + str(wl) + '.csv'
+        pt_file = 'train_usd50_pt' + str(pt) + '.csv'
+
+        config = 'bp_for_cls_usd50_wl' + str(wl) + '_pt' + str(pt)
+        args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
+                '--config', config, '--train-points-file', pt_file,
+                '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
+                '--epoch', str(epochs), '--lr', str(args.lr), '--beta', str(args.beta),
+                '--amp', '--balance', '--target-normalization', '--device', device, '--eval-freq', str(epochs),
                 '--alpha', str(0), '--bbp-coverage', str(0.25), '--bbp-sampling-step', str(0.05)]
 
         old_sys_argv = sys.argv

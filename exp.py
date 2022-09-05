@@ -189,7 +189,7 @@ if __name__ == "__main__":
     if args.bboxprior_for_classification:
         bboxprior_for_classification(args)
 
-    if args.tune_bbox_coverage:
+    if args.tune_bbp_coverage:
         tune_bbp_coverage(args)
 
 

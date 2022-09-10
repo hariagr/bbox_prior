@@ -155,7 +155,7 @@ def tune_bbp_coverage(args):
             wl_file = 'train_usd50_wl' + str(wl) + '.csv'
             pt_file = 'train_usd50_pt' + str(pt) + '.csv'
             for cov in bbp_coverage:
-                config = 'bp_for_cls_usd50_wl' + str(wl) + '_pt' + str(pt) + '_cov' + str(cov)
+                config = 'usd50_wl' + str(wl) + '_pt' + str(pt) + '_cov' + str(cov)
                 args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
                         '--config', config, '--train-points-file', pt_file,
                         '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
@@ -182,7 +182,7 @@ def tune_alpha(args):
         wl_file = 'train_usd50_wl' + str(wl) + '.csv'
         pt_file = 'train_usd50_pt' + str(pt) + '.csv'
         for alpha in alphas:
-            config = 'bp_for_cls_usd50_wl' + str(wl) + '_pt' + str(pt) + '_alpha' + str(alpha)
+            config = 'usd50_wl' + str(wl) + '_pt' + str(pt) + '_alpha' + str(alpha)
             args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
                     '--config', config, '--train-points-file', pt_file,
                     '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),

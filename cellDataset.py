@@ -78,10 +78,10 @@ class CSVDataset(Dataset):
             train_cell_count = train_data.groupby('label')['image'].count()
 
             print("counts of ground truth boxes:")
-            num_of_boxes = np.empty(self.num_classes(), dtype=int)
-            for key, value in self.classes.items():
-                num_of_boxes[value] = train_cell_count[key]
-                print("%s: %d" % (key, train_cell_count[key]))
+            num_of_boxes = np.zeros(self.num_classes(), dtype=int)
+            for key, value in train_cell_count.items():
+                num_of_boxes[self.classes[key]] = value
+                print("%s: %d" % (key, value))
         else:
             num_of_boxes = np.zeros(self.num_classes(), dtype=int)
 
@@ -107,10 +107,11 @@ class CSVDataset(Dataset):
             points_cell_count = points_data.groupby('label')['image'].count()
 
             print("counts of point annotations:")
-            num_of_points = np.empty(self.num_classes(), dtype=int)
-            for key, value in self.classes.items():
-                num_of_points[value] = points_cell_count[key]
-                print("%s: %d" % (key, points_cell_count[key]))
+            num_of_points = np.zeros(self.num_classes(), dtype=int)
+            for key, value in points_cell_count.items():
+                num_of_points[self.classes[key]] = value
+                print("%s: %d" % (key, value))
+
         else:
              num_of_points = np.zeros(self.num_classes(), dtype=int)
 

@@ -3,6 +3,7 @@ from train import get_args_parser as trainfunc_args_parser
 import sys
 import numpy as np
 
+
 # experiment 1 - Baseline (All boxes) -- upper bound
 # sub experiments (a) GT_loss: L1, L2, smooth-L1
 #                 (b) beta (class imbalance parameter)
@@ -45,10 +46,13 @@ def get_args_parser(add_help=True):
                         help="configuration name used to set filename of the csv files")
     parser.add_argument("--tune-batch-size", dest="tune_batch_size", help="", action="store_true")
     parser.add_argument("--baseline", dest="baseline", help="", action="store_true")
-    parser.add_argument("--bboxprior-for-classification", dest="bboxprior_for_classification", help="", action="store_true")
+    parser.add_argument("--bboxprior-for-classification", dest="bboxprior_for_classification", help="",
+                        action="store_true")
     parser.add_argument("--tune-bbp-coverage", dest="tune_bbp_coverage", help="", action="store_true")
     parser.add_argument("--tune-alpha", dest="tune_alpha", help="", action="store_true")
+    parser.add_argument("--prefix", default='train_usd50', type=str, help="prefix for training files")
     return parser
+
 
 # through this experiment, we intend to find batch size and epoch values
 def tune_batch_size(args):
@@ -58,8 +62,8 @@ def tune_batch_size(args):
 
     # experiment 0: batch size, learning rate,
     batch_sizes = [2, 4, 8, 16]
-    train_file = args.train_file  #'train_usd50_wl5.csv'
-    config = args.config  #'usd50_wl5_'
+    train_file = args.train_file  # 'train_usd50_wl5.csv'
+    config = args.config  # 'usd50_wl5_'
 
     for batch_size in batch_sizes:
         args = ['--data-path', args.data_path, '--train-file', train_file, '--results-dir', args.results_dir,
@@ -74,16 +78,17 @@ def tune_batch_size(args):
         training_time = trainfunc(args)
         print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
+
 def baseline(args):
     epochs = 50
     batch_size = 8
     workers = args.workers
     device = args.device
 
-    wlimages = np.array([5, 20, 40, 60, 80])
+    wlimages = np.array([10, 30, 50])
     for wl in wlimages:
-        train_file = 'train_usd50_wl' + str(wl) + '.csv'
-        config = 'baseline_usd50_wl' + str(wl)
+        train_file = args.prefix + '_wl' + str(wl) + '.csv'
+        config = args.prefix + '_baseline_wl' + str(wl)
         args = ['--data-path', args.data_path, '--train-file', train_file, '--results-dir', args.results_dir,
                 '--config', config + '_b' + str(batch_size),
                 '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
@@ -96,18 +101,19 @@ def baseline(args):
         training_time = trainfunc(args)
         print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
+
 def bboxprior_for_classification(args):
     epochs = 50
     batch_size = 8
     workers = args.workers
     device = args.device
 
-    wlimages = np.array([5, 20, 40, 60, 80])
+    wlimages = np.array([10, 30, 50])
     for wl in wlimages:
-        wl_file = 'train_usd50_wl' + str(wl) + '.csv'
-        pt_file = 'train_usd50_pt' + str(100 - wl) + '.csv'
+        wl_file = args.prefix + '_wl' + str(wl) + '.csv'
+        pt_file = args.prefix + '_pt' + str(100 - wl) + '.csv'
 
-        config = 'bp_for_cls_usd50_wl' + str(wl) + '_pt' + str(100 - wl)
+        config = args.prefix + '_wl' + str(wl) + '_pt' + str(100 - wl) + '_alpha0'
         args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
                 '--config', config, '--train-points-file', pt_file,
                 '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
@@ -121,13 +127,13 @@ def bboxprior_for_classification(args):
         training_time = trainfunc(args)
         print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
-    wl = 5
-    ptimages = np.array([10, 30, 50, 70])
+    wl = 10
+    ptimages = np.array([30, 50])
     for pt in ptimages:
-        wl_file = 'train_usd50_wl' + str(wl) + '.csv'
-        pt_file = 'train_usd50_pt' + str(pt) + '.csv'
+        wl_file = args.prefix + '_wl' + str(wl) + '.csv'
+        pt_file = args.prefix + '_pt' + str(pt) + '.csv'
 
-        config = 'bp_for_cls_usd50_wl' + str(wl) + '_pt' + str(pt)
+        config = args.prefix + '_wl' + str(wl) + '_pt' + str(pt) + '_alpha0'
         args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
                 '--config', config, '--train-points-file', pt_file,
                 '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
@@ -141,21 +147,23 @@ def bboxprior_for_classification(args):
         training_time = trainfunc(args)
         print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
+
+# at alpha = 0
 def tune_bbp_coverage(args):
     epochs = 50
     batch_size = 8
     workers = args.workers
     device = args.device
 
-    wlimages = np.array([5, 10, 20])
-    ptimages = np.array([10, 20, 30])
-    bbp_coverage = np.array([0.5, 0.25, 0.125, 0])
+    wlimages = np.array([10, 30])
+    ptimages = np.array([10, 30])
+    bbp_coverage = np.array([0.0, 0.125, 0.25, 0.5, 0.75, 1])
     for wl in wlimages:
         for pt in ptimages:
-            wl_file = 'train_usd50_wl' + str(wl) + '.csv'
-            pt_file = 'train_usd50_pt' + str(pt) + '.csv'
+            wl_file = args.prefix + '_wl' + str(wl) + '.csv'
+            pt_file = args.prefix + '_pt' + str(pt) + '.csv'
             for cov in bbp_coverage:
-                config = 'usd50_wl' + str(wl) + '_pt' + str(pt) + '_cov' + str(cov)
+                config = args.prefix + '_wl' + str(wl) + '_pt' + str(pt) + '_cov' + str(cov)
                 args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
                         '--config', config, '--train-points-file', pt_file,
                         '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
@@ -169,6 +177,7 @@ def tune_bbp_coverage(args):
                 training_time = trainfunc(args)
                 print(f"config: {config}, batch_size: {batch_size}, training time/epoch: {training_time / epochs}")
 
+
 def tune_alpha(args):
     epochs = 50
     batch_size = 8
@@ -179,10 +188,10 @@ def tune_alpha(args):
     wl = 5
     ptimages = np.array([10, 30, 50, 70, 95])
     for pt in ptimages:
-        wl_file = 'train_usd50_wl' + str(wl) + '.csv'
-        pt_file = 'train_usd50_pt' + str(pt) + '.csv'
+        wl_file = args.prefix + '_wl' + str(wl) + '.csv'
+        pt_file = args.prefix + '_pt' + str(pt) + '.csv'
         for alpha in alphas:
-            config = 'usd50_wl' + str(wl) + '_pt' + str(pt) + '_alpha' + str(alpha)
+            config = args.prefix + '_wl' + str(wl) + '_pt' + str(pt) + '_alpha' + str(alpha)
             args = ['--data-path', args.data_path, '--train-file', wl_file, '--results-dir', args.results_dir,
                     '--config', config, '--train-points-file', pt_file,
                     '--bbox-loss', args.bbox_loss, '--workers', str(workers), '--batch-size', str(batch_size),
@@ -219,8 +228,3 @@ if __name__ == "__main__":
 
     if args.tune_alpha:
         tune_alpha(args)
-
-
-
-
-

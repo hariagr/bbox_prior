@@ -50,7 +50,7 @@ try:
 except ImportError:
     prototype = None
 
-torch.backends.cudnn.benchmark = True
+#torch.backends.cudnn.benchmark = True
 
 def get_dataset(name, image_set, transform, data_path):
     paths = {"coco": (data_path, get_coco, 91), "coco_kp": (data_path, get_coco_kp, 2)}
@@ -205,6 +205,7 @@ def get_args_parser(add_help=True):
 
     #argprof
     parser.add_argument("--DLprof", action="store_true", help="flag to run profiling")
+    parser.add_argument("--tune-bbox-coverage", action="store_true", help="tune bbox coverage based on a region matching algorithm")
 
     return parser
 
@@ -292,7 +293,7 @@ def main(args):
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
 
-    if args.train_points_file is not None:
+    if args.train_points_file is not None or args.tune_bbox_coverage:
         print('Calculating box priors')
         if args.train_file is None:
             model = cal_bbox_priors(model, data_loader_val, device)

@@ -14,7 +14,7 @@ from torchvision.ops import boxes as box_ops
 
 cudnn_deterministic = True
 
-# enables reproducibilty
+# enables reproducibility
 def seed_everything(seed=0):
     """Fix all random seeds"""
     random.seed(seed)
@@ -23,7 +23,8 @@ def seed_everything(seed=0):
     torch.cuda.manual_seed_all(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.backends.cudnn.deterministic = cudnn_deterministic
-
+    torch.backends.cudnn.benchmark = False  # reduces performance but improves reproducibility chances
+    torch.use_deterministic_algorithms(True)
 
 # implementation from torchvision.ops box_iou
 # with slight modifications

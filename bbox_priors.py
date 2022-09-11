@@ -3,7 +3,6 @@ import pandas as pd
 
 
 def cal_bbox_priors(model, dataloader, device):
-
     model.train()
     table = torch.tensor([], device=device)
     for images, targets in dataloader:
@@ -22,7 +21,8 @@ def cal_bbox_priors(model, dataloader, device):
                     gt_widths = reference_boxes_x2 - reference_boxes_x1
                     gt_heights = reference_boxes_y2 - reference_boxes_y1
 
-                    tl = torch.cat((gt_widths, gt_heights, torch.log(gt_widths), torch.log(gt_heights), target["labels"].reshape(-1,1)), 1)
+                    tl = torch.cat((gt_widths, gt_heights, torch.log(gt_widths), torch.log(gt_heights),
+                                    target["labels"].reshape(-1, 1)), 1)
                     table = torch.cat((table, tl), 0)
 
         except Exception as e:
@@ -32,16 +32,30 @@ def cal_bbox_priors(model, dataloader, device):
     # compute priors
     df = pd.DataFrame(table.cpu().numpy(), columns=["width", "height", "logOfwidth", "logOfheight", "labels"])
     gdf = df.groupby('labels')
-    bbox_priors = {}
-    bbox_priors["width_mean"] = torch.as_tensor(gdf['width'].mean().values, dtype=torch.float32)
-    bbox_priors["width_std"] = torch.as_tensor(gdf['width'].std().values, dtype=torch.float32)
-    bbox_priors["height_mean"] = torch.as_tensor(gdf['height'].mean().values, dtype=torch.float32)
-    bbox_priors["height_std"] = torch.as_tensor(gdf['height'].std().values, dtype=torch.float32)
 
-    bbox_priors["logOfwidth_mean"] = torch.as_tensor(gdf['logOfwidth'].mean().values, dtype=torch.float32)
-    bbox_priors["logOfwidth_std"] = torch.as_tensor(gdf['logOfwidth'].std().values, dtype=torch.float32)
-    bbox_priors["logOfheight_mean"] = torch.as_tensor(gdf['logOfheight'].mean().values, dtype=torch.float32)
-    bbox_priors["logOfheight_std"] = torch.as_tensor(gdf['logOfheight'].std().values, dtype=torch.float32)
+    num_classes = dataloader.dataset.num_classes()
+    bbox_priors = {"width_mean": torch.zeros(num_classes, dtype=torch.float32),
+                   "width_std": torch.zeros(num_classes, dtype=torch.float32),
+                   "height_mean": torch.zeros(num_classes, dtype=torch.float32),
+                   "height_std": torch.zeros(num_classes, dtype=torch.float32),
+                   "logOfwidth_mean": torch.zeros(num_classes, dtype=torch.float32),
+                   "logOfwidth_std": torch.zeros(num_classes, dtype=torch.float32),
+                   "logOfheight_mean": torch.zeros(num_classes, dtype=torch.float32),
+                   "logOfheight_std": torch.zeros(num_classes, dtype=torch.float32),
+                   }
+
+    for idx, df_grp in gdf:
+        idx = int(idx)
+
+        bbox_priors["width_mean"][idx] = torch.as_tensor(df_grp['width'].mean(), dtype=torch.float32)
+        bbox_priors["width_std"][idx] = torch.as_tensor(df_grp['width'].std(), dtype=torch.float32)
+        bbox_priors["height_mean"][idx] = torch.as_tensor(df_grp['height'].mean(), dtype=torch.float32)
+        bbox_priors["height_std"][idx] = torch.as_tensor(df_grp['height'].std(), dtype=torch.float32)
+
+        bbox_priors["logOfwidth_mean"][idx] = torch.as_tensor(df_grp['logOfwidth'].mean(), dtype=torch.float32)
+        bbox_priors["logOfwidth_std"][idx] = torch.as_tensor(df_grp['logOfwidth'].std(), dtype=torch.float32)
+        bbox_priors["logOfheight_mean"][idx] = torch.as_tensor(df_grp['logOfheight'].mean(), dtype=torch.float32)
+        bbox_priors["logOfheight_std"][idx] = torch.as_tensor(df_grp['logOfheight'].std(), dtype=torch.float32)
 
     model.bbox_priors = bbox_priors
     model.head.bbox_priors = bbox_priors

@@ -15,6 +15,9 @@ df = pd.read_csv(os.path.join(file_path, 'train_usd50.csv'))
 udf = df['image'].unique()
 nimg = udf.shape[0]
 
+## under-representation (work with only single class)
+## show atleast 10-20 images with bounding boxes for a particular class
+
 for wl in wlimages:
     idx = random.sample(range(0, nimg), math.ceil(nimg*wl/100))
 

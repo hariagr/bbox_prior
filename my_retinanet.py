@@ -41,10 +41,10 @@ class RetinaNetHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, alpha, bbox_loss):
+    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, alpha, gt_bbox_loss, st_bbox_loss):
         super().__init__()
         self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes, bl_weights)
-        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha, bbox_loss)
+        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha, gt_bbox_loss, st_bbox_loss)
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Dict[str, Tensor]
@@ -164,7 +164,7 @@ class RetinaNetRegressionHead(nn.Module):
         "box_coder": det_utils.BoxCoder,
     }
 
-    def __init__(self, in_channels, num_anchors, bl_weights, alpha, bbox_loss):
+    def __init__(self, in_channels, num_anchors, bl_weights, alpha, gt_bbox_loss, st_bbox_loss):
         super().__init__()
 
         conv = []
@@ -187,7 +187,8 @@ class RetinaNetRegressionHead(nn.Module):
         self.alpha = alpha
         self.cal_tnorm_weights = False
         self.target_normalization = {'x': torch.zeros(4).to(bl_weights.device), 'x2': torch.zeros(4).to(bl_weights.device), 'num': 0}
-        self.bbox_loss = bbox_loss
+        self.gt_bbox_loss = gt_bbox_loss
+        self.st_bbox_loss = st_bbox_loss
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Tensor
@@ -218,9 +219,14 @@ class RetinaNetRegressionHead(nn.Module):
                     #     1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
                     idx_stbox[indx] = torch.tensor(label.clone().detach(), device=device).reshape(1, -1)
                     if not self.cal_tnorm_weights:
-                        beta_stbox[indx] = torch.tensor(
-                            [1, 1, 1 + self.bbox_priors['target_width_std'][label] ** 2,
-                             1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)
+                        if self.st_bbox_loss == 'l1':
+                            beta_stbox[indx] = torch.tensor(
+                                [1, 1, 1 + self.bbox_priors['target_width_std'][label],
+                                 1 + self.bbox_priors['target_height_std'][label]], device=device).reshape(1, -1)
+                        elif self.st_bbox_loss == 'l2':
+                            beta_stbox[indx] = torch.tensor(
+                                [1, 1, 1 + self.bbox_priors['target_width_std'][label] ** 2,
+                                 1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)
                     else:
                         beta_stbox[indx] = torch.tensor([1, 1, 1, 1], device=device).reshape(1, -1)
 
@@ -262,21 +268,30 @@ class RetinaNetRegressionHead(nn.Module):
             bl_det_weights = self.bl_weights[labels_per_image[matched_idxs_per_image[foreground_idxs_per_image]]].reshape((-1, 1))
 
             # compute the loss
-            if self.bbox_loss == 'l1' or self.bbox_loss == 'l2':
-                if self.bbox_loss == 'l1':
-                    det_loss_per_image = torch.nn.functional.l1_loss(bbox_regression_per_image, target_regression,
-                                                             size_average=False, reduce=False, reduction='none')
-                if self.bbox_loss == 'l2':
-                    det_loss_per_image = torch.nn.functional.mse_loss(bbox_regression_per_image, target_regression,
-                                                             size_average=False, reduce=False, reduction='none')
-                if targets_per_image['points'].numel() != 0:
-                    # considering beta is one for deterministic boxes
-                    #idx_box = torch.where(idx_per_image == -1)[0]  # determinstic
-                    #det_loss_per_image[idx_box] = (1/beta_per_image[idx_box]) * det_loss_per_image[idx_box]
-                    idx_stbox = torch.where(idx_per_image >= 0)[0]  # stochastic
-                    det_loss_per_image[idx_stbox] = self.alpha * (1/beta_per_image[idx_stbox]) * det_loss_per_image[idx_stbox]
+            # we know computing both losses are redundant, but it simplifies the code
+            if self.gt_bbox_loss == 'l1' or self.gt_bbox_loss == 'l2' or self.st_bbox_loss == 'l1' or self.st_bbox_loss == 'l2':
+                det_l1_loss_per_image = torch.nn.functional.l1_loss(bbox_regression_per_image, target_regression,
+                                                                    size_average=False, reduce=False, reduction='none')
+                det_l2_loss_per_image = torch.nn.functional.mse_loss(bbox_regression_per_image, target_regression,
+                                                                     size_average=False, reduce=False, reduction='none')
+                # considering beta is one for deterministic boxes
+                if self.gt_bbox_loss == 'l1':
+                    det_loss_per_image = det_l1_loss_per_image
+                elif self.gt_bbox_loss == 'l2':
+                    det_loss_per_image = det_l2_loss_per_image
 
-            elif self.bbox_loss == 'smooth_l1':
+                if targets_per_image['points'].numel() != 0:
+                    idx_stbox = torch.where(idx_per_image >= 0)[0]
+                    if self.st_bbox_loss == 'l1':
+                        det_loss_per_image[idx_stbox] = self.alpha * (1 / beta_per_image[idx_stbox]) * \
+                                                        det_l1_loss_per_image[
+                                                            idx_stbox]
+                    elif self.st_bbox_loss == 'l2':
+                        det_loss_per_image[idx_stbox] = self.alpha * (1 / beta_per_image[idx_stbox]) * \
+                                                        det_l2_loss_per_image[
+                                                            idx_stbox]
+
+            elif self.gt_bbox_loss == 'smooth_l1' and self.st_bbox_loss == 'smooth_l1':
                 det_loss_per_image = torch.zeros(bbox_regression_per_image.shape, device=device)
                 uidx = torch.unique(idx_per_image)
                 for idx in uidx:
@@ -287,7 +302,7 @@ class RetinaNetRegressionHead(nn.Module):
                     if idx != -1:
                         det_loss_per_image[idx_box] = self.alpha * det_loss_per_image[idx_box]
             else:
-                print(f"{self.bbox_loss} is not implemented")
+                print(f"selected loss function combination is not implemented yet")
 
             # balancing
             det_loss_per_image = bl_det_weights * det_loss_per_image
@@ -433,7 +448,8 @@ class RetinaNet(nn.Module):
         alpha=0,
         bbp_coverage=1,
         bbp_sampling_step=0.5,
-        bbox_loss='l2'
+        gt_bbox_loss='l1',
+        st_bbox_loss='l2'
     ):
         super().__init__()
         _log_api_usage_once(self)
@@ -455,7 +471,7 @@ class RetinaNet(nn.Module):
         self.anchor_generator = anchor_generator
 
         if head is None:
-            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights, alpha, bbox_loss)
+            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights, alpha, gt_bbox_loss, st_bbox_loss)
         self.head = head
 
         if proposal_matcher is None:

@@ -88,7 +88,7 @@ def get_args_parser(add_help=True):
     #parser.add_argument("--model", default="maskrcnn_resnet50_fpn", type=str, help="model name")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
-        "-b", "--batch-size", default=2, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
+        "-b", "--batch-size", default=8, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
     )
     parser.add_argument("--epochs", default=26, type=int, metavar="N", help="number of total epochs to run")
     parser.add_argument(
@@ -197,11 +197,12 @@ def get_args_parser(add_help=True):
 
     # parameters for bounding box prior strategy
     parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
-    parser.add_argument("--bbp-coverage", default=2, type=float,
+    parser.add_argument("--bbp-coverage", default=0.25, type=float,
                         help="(in terms of std.dev.) - maximum wideness of a stochastic box")
-    parser.add_argument("--bbp-sampling-step", default=0.2, type=float,
+    parser.add_argument("--bbp-sampling-step", default=0.05, type=float,
                         help="sampling of stochastic box wideness")
-    parser.add_argument("--bbox-loss", default='smooth_l1', type=str, help="bounding box regression loss function")
+    parser.add_argument("--gt-bbox-loss", default='l1', type=str, help="bounding box regression loss function")
+    parser.add_argument("--st-bbox-loss", default='l2', type=str, help="stochastic bounding box regression loss function")
 
     #argprof
     parser.add_argument("--DLprof", action="store_true", help="flag to run profiling")
@@ -289,7 +290,7 @@ def main(args):
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights,
-              "alpha": args.alpha, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step, "bbox_loss": args.bbox_loss}
+              "alpha": args.alpha, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step, "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
 
@@ -351,10 +352,6 @@ def main(args):
         if args.amp:
             scaler.load_state_dict(checkpoint["scaler"])
 
-    if args.test_only:
-        evaluate(model, data_loader_test, device=device)
-        return
-
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
@@ -381,9 +378,10 @@ def main(args):
             }
             if args.amp:
                 checkpoint["scaler"] = scaler.state_dict()
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
-
+            #utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
+            utils.save_on_master(checkpoint, os.path.join(args.output_dir, args.config + time.strftime('%Y%m%d_%H%M%S',
+                                                                                                time.localtime(
+                                                                                                    start_time)) + ".pth"))
         # evaluate after every epoch
         if (epoch + 1) % args.eval_freq == 0:
             # coco_evaluator = evaluate(model, data_loader_val, device=device)  # coco evaluation

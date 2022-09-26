@@ -90,7 +90,7 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "-b", "--batch-size", default=8, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
     )
-    parser.add_argument("--epochs", default=26, type=int, metavar="N", help="number of total epochs to run")
+    parser.add_argument("--epochs", default=1, type=int, metavar="N", help="number of total epochs to run")
     parser.add_argument(
         "-j", "--workers", default=4, type=int, metavar="N", help="number of data loading workers (default: 4)"
     )
@@ -402,6 +402,11 @@ def main(args):
                                                                                                     start_time)) + '.csv')
                 eval_val.to_csv(filename, mode='a', header=not os.path.exists(filename))
 
+                filename = os.path.join(args.results_dir, 'at_' + args.config + '_val_' + time.strftime('%Y%m%d_%H%M%S',
+                                                                                                time.localtime(
+                                                                                                    start_time)) + '.csv')
+                analysis_table.to_csv(filename, mode='a', header=not os.path.exists(filename))
+                
                 filename = os.path.join(args.results_dir, args.config + '_test_' + time.strftime('%Y%m%d_%H%M%S',
                                                                                                  time.localtime(
                                                                                                      start_time)) + '.csv')

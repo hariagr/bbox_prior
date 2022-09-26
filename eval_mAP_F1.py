@@ -351,8 +351,8 @@ def evaluate(
         df = pd.DataFrame(data, columns=columns)
 
         if store_df:
-            if label == 1:
-                df_to_return = df
+            #if label == 1:
+            df_to_return = df
 
         sc = np.linspace(1, 0, 11)
         indx = []

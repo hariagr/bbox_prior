@@ -508,10 +508,14 @@ class RetinaNet(nn.Module):
                 )
                 continue
 
+            #avg_banchor = torch.zeros(1)
+            #tmatched_anchors = torch.zeros(1)
             if targets_per_image["boxes"].numel() != 0:
                 match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)
                 bmatched_idxs = self.proposal_matcher(match_quality_matrix)
                 bmatched_anchors = bmatched_idxs >= 0
+                #tmatched_anchors = bmatched_anchors
+                #avg_banchor = sum(bmatched_anchors) / targets_per_image["boxes"].shape[0]
             else:
                 match_quality_matrix = torch.tensor([], device=device)
                 bmatched_idxs = torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)
@@ -552,7 +556,6 @@ class RetinaNet(nn.Module):
 
                 match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
                 bmatched_idxs = self.proposal_matcher(match_quality_matrix)
-                #bmatched_anchors = bmatched_idxs >= 0
             else:  # clusters are considered only if point information is not available
                 if targets_per_image["gboxes"].numel() != 0:
                     gmatch_quality_matrix = utils.box_ioa(targets_per_image['gboxes'],
@@ -571,6 +574,9 @@ class RetinaNet(nn.Module):
                 bmatched_idxs[mmatched_anchors] = -2
 
             matched_idxs.append(bmatched_idxs)
+
+            #avg_bpanchor = (torch.sum(bmatched_idxs >= 0) - torch.sum(tmatched_anchors))/ (targets_per_image["points"].shape[0])
+            #print(f'box avg. anchors: {avg_banchor}, box avg. anchors: {avg_bpanchor}')
 
         return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs)
 

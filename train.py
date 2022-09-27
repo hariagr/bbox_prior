@@ -315,7 +315,7 @@ def main(args):
     if args.train_points_file is not None:
         tstd = 1/torch.as_tensor(model.box_coder.weights)
         model.bbox_priors["target_width_std"] = model.bbox_priors["logOfwidth_std"]/tstd[2]
-        model.bbox_priors["target_height_std"] = model.bbox_priors["logOfwidth_std"]/tstd[3]
+        model.bbox_priors["target_height_std"] = model.bbox_priors["logOfheight_std"]/tstd[3]
         model.head.bbox_priors = model.bbox_priors
         model.head.regression_head.bbox_priors = model.bbox_priors
         print(model.bbox_priors)
@@ -406,7 +406,7 @@ def main(args):
                                                                                                 time.localtime(
                                                                                                     start_time)) + '.csv')
                 analysis_table.to_csv(filename, mode='a', header=not os.path.exists(filename))
-                
+
                 filename = os.path.join(args.results_dir, args.config + '_test_' + time.strftime('%Y%m%d_%H%M%S',
                                                                                                  time.localtime(
                                                                                                      start_time)) + '.csv')

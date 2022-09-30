@@ -38,6 +38,7 @@ from eval_mAP_F1 import evaluate as eval_mAP_F1
 from target_normalization import cal_tnorm_weights
 from bbox_priors import cal_bbox_priors
 from cal_bbox_prior_hp import cal_bbox_prior_hp
+from draw_det import draw_det
 
 import platform
 
@@ -197,6 +198,7 @@ def get_args_parser(add_help=True):
 
     # parameters for bounding box prior strategy
     parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
+    parser.add_argument("--bbox-sampling", default='mean', type=str, help="bounding box sampling strategy")
     parser.add_argument("--bbp-coverage", default=0.25, type=float,
                         help="(in terms of std.dev.) - maximum wideness of a stochastic box")
     parser.add_argument("--bbp-sampling-step", default=0.05, type=float,
@@ -260,7 +262,8 @@ def main(args):
         val_sampler = torch.utils.data.distributed.DistributedSampler(dataset_val)
         test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
     else:
-        train_sampler = torch.utils.data.RandomSampler(dataset)
+        if len(dataset) > 0:
+            train_sampler = torch.utils.data.RandomSampler(dataset)
         val_sampler = torch.utils.data.SequentialSampler(dataset_val)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
@@ -268,11 +271,13 @@ def main(args):
         group_ids = create_aspect_ratio_groups(dataset, k=args.aspect_ratio_group_factor)
         train_batch_sampler = GroupedBatchSampler(train_sampler, group_ids, args.batch_size)
     else:
-        train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, args.batch_size, drop_last=False)
+        if len(dataset) > 0:
+            train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, args.batch_size, drop_last=False)
 
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_sampler=train_batch_sampler, num_workers=args.workers, collate_fn=utils.collate_fn, pin_memory=True,
-    )
+    if len(dataset) > 0:
+        data_loader = torch.utils.data.DataLoader(
+            dataset, batch_sampler=train_batch_sampler, num_workers=args.workers, collate_fn=utils.collate_fn, pin_memory=True,
+        )
 
     data_loader_val = torch.utils.data.DataLoader(
         dataset_val, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.workers, collate_fn=utils.collate_fn, pin_memory=True,
@@ -290,9 +295,19 @@ def main(args):
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights,
-              "alpha": args.alpha, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step, "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss}
+              "alpha": args.alpha, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step,
+              "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss, "bbox_sampling": args.bbox_sampling}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
+
+    if args.test_only:
+        checkpoint = torch.load(args.resume, map_location="cpu")
+        model.load_state_dict(checkpoint["model"])
+        model.eval()
+        results_folder = args.results_dir + args.config
+        utils.mkdir(results_folder)
+        draw_det(model, data_loader_val, device=device, folder=results_folder)
+        return
 
     if args.train_points_file is not None or args.tune_bbox_coverage:
         print('Calculating box priors')

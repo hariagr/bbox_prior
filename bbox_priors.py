@@ -1,6 +1,7 @@
 import torch
 import pandas as pd
-
+from scipy import stats
+import numpy as np
 
 def cal_bbox_priors(model, dataloader, device):
     model.train()
@@ -42,6 +43,8 @@ def cal_bbox_priors(model, dataloader, device):
                    "logOfwidth_std": torch.zeros(num_classes, dtype=torch.float32),
                    "logOfheight_mean": torch.zeros(num_classes, dtype=torch.float32),
                    "logOfheight_std": torch.zeros(num_classes, dtype=torch.float32),
+                   "width_mode": torch.zeros(num_classes, dtype=torch.float32),
+                   "height_mode": torch.zeros(num_classes, dtype=torch.float32),
                    }
 
     for idx, df_grp in gdf:
@@ -57,6 +60,9 @@ def cal_bbox_priors(model, dataloader, device):
         bbox_priors["logOfheight_mean"][idx] = torch.as_tensor(df_grp['logOfheight'].mean(), dtype=torch.float32)
         bbox_priors["logOfheight_std"][idx] = torch.as_tensor(df_grp['logOfheight'].std(), dtype=torch.float32)
 
+        bbox_priors["width_mode"][idx] = torch.as_tensor(cal_mode(df_grp['width']), dtype=torch.float32)
+        bbox_priors["height_mode"][idx] = torch.as_tensor(cal_mode(df_grp['height']), dtype=torch.float32)
+
     model.bbox_priors = bbox_priors
     model.head.bbox_priors = bbox_priors
     model.head.regression_head.bbox_priors = bbox_priors
@@ -64,3 +70,15 @@ def cal_bbox_priors(model, dataloader, device):
     print(bbox_priors)
 
     return model
+
+def cal_mode(data, num_points = 500):
+    data = data.to_numpy().reshape(1, -1)
+    kernel = stats.gaussian_kde(data)
+    X = np.linspace(np.min(data), np.max(data), num_points).reshape(1, -1)
+    prob = kernel(X.reshape(1, -1))
+    mode = X[0, np.argmax(prob)]
+    return mode
+
+    # plt.plot(X_plot, prob)
+    # mean = np.mean(width)
+    # mean2 = np.sum(prob*X_plot)/np.sum(prob)

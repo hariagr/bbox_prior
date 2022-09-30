@@ -41,10 +41,10 @@ class RetinaNetHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, alpha, gt_bbox_loss, st_bbox_loss):
+    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss):
         super().__init__()
         self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes, bl_weights)
-        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha, gt_bbox_loss, st_bbox_loss)
+        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss)
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Dict[str, Tensor]
@@ -168,7 +168,7 @@ class RetinaNetRegressionHead(nn.Module):
         "box_coder": det_utils.BoxCoder,
     }
 
-    def __init__(self, in_channels, num_anchors, bl_weights, alpha, gt_bbox_loss, st_bbox_loss):
+    def __init__(self, in_channels, num_anchors, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss):
         super().__init__()
 
         conv = []
@@ -188,7 +188,7 @@ class RetinaNetRegressionHead(nn.Module):
 
         self.box_coder = det_utils.BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
         self.bl_weights = bl_weights
-        self.alpha = alpha
+        self.alpha = torch.tensor([alpha_ct, alpha_ct, alpha, alpha], device=bl_weights.device)
         self.cal_tnorm_weights = False
         self.target_normalization = {'x': torch.zeros(4).to(bl_weights.device), 'x2': torch.zeros(4).to(bl_weights.device), 'num': 0}
         self.gt_bbox_loss = gt_bbox_loss
@@ -449,6 +449,7 @@ class RetinaNet(nn.Module):
         topk_candidates=1000,
         # loss parameters
         bl_weights=None,
+        alpha_ct=1,
         alpha=0,
         bbox_sampling='mean',
         bbp_coverage=0.0,
@@ -476,7 +477,7 @@ class RetinaNet(nn.Module):
         self.anchor_generator = anchor_generator
 
         if head is None:
-            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights, alpha, gt_bbox_loss, st_bbox_loss)
+            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss)
         self.head = head
 
         if proposal_matcher is None:

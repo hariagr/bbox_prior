@@ -450,7 +450,8 @@ class RetinaNet(nn.Module):
         # loss parameters
         bl_weights=None,
         alpha=0,
-        bbp_coverage=1,
+        bbox_sampling='mean',
+        bbp_coverage=0.0,
         bbp_sampling_step=0.5,
         gt_bbox_loss='l1',
         st_bbox_loss='l2'
@@ -504,6 +505,7 @@ class RetinaNet(nn.Module):
 
         # bounding box prior
         #self.box_priors = box_priors
+        self.bbox_sampling = bbox_sampling
         self.bbox_prior_coverage = bbp_coverage
         self.bbox_prior_sampling_step = bbp_sampling_step
 
@@ -550,14 +552,24 @@ class RetinaNet(nn.Module):
                 ws, hs = torch.meshgrid(xs, xs, indexing="ij")
 
                 for idx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
-                    x1 = center[0] - 0.5 * (
-                                self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
-                    x2 = center[0] + 0.5 * (
-                                self.bbox_priors['width_mean'][label] + ws * self.bbox_priors['width_std'][label])
-                    y1 = center[1] - 0.5 * (
-                                self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
-                    y2 = center[1] + 0.5 * (
-                                self.bbox_priors['height_mean'][label] + hs * self.bbox_priors['height_std'][label])
+
+                    if self.bbox_sampling == 'mean':
+                        width_mu = self.bbox_priors['width_mean'][label]
+                        height_mu = self.bbox_priors['height_mean'][label]
+                        width_std = self.bbox_priors['width_std'][label]
+                        height_std = self.bbox_priors['height_std'][label]
+                    elif self.bbox_sampling == 'mode':
+                        width_mu = self.bbox_priors['width_mode'][label]
+                        height_mu = self.bbox_priors['height_mode'][label]
+                        width_std = self.bbox_priors['width_std'][label]
+                        height_std = self.bbox_priors['height_std'][label]
+                    else:
+                        print(f"{self.bbox_sampling} sampling method is not implemented!")
+
+                    x1 = center[0] - 0.5 * (width_mu + ws * width_std)
+                    x2 = center[0] + 0.5 * (width_mu + ws * width_std)
+                    y1 = center[1] - 0.5 * (height_mu + hs * height_std)
+                    y2 = center[1] + 0.5 * (height_mu + hs * height_std)
 
                     # create all stochastic boxes
                     stochastic_boxes = torch.stack([x1.flatten(), y1.flatten(), x2.flatten(), y2.flatten()], 1)

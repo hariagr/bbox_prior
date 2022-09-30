@@ -177,6 +177,7 @@ class CSVDataset(Dataset):
 
         target = {}
         target["image_id"] = torch.tensor([idx])
+        #target["image_name"] = torch.tensor([self.image_index_to_image_file(idx)])
         target["iscrowd"] = torch.zeros_like(labels)
 
         target["boxes"] = boxes

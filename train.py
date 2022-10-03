@@ -200,6 +200,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--alpha-ct", default=0, type=float, help="parameter to weigh the center of "
                                                                   "stochastic boxes loss function")
     parser.add_argument("--alpha", default=0, type=float, help="a parameter to weigh stochastic boxes loss function")
+    parser.add_argument("--exp-tc", default=0, type=float, help="a parameter to weigh anchors in stochastic box loss function")
     parser.add_argument("--bbox-sampling", default='mean', type=str, help="bounding box sampling strategy")
     parser.add_argument("--bbp-coverage", default=0.25, type=float,
                         help="(in terms of std.dev.) - maximum wideness of a stochastic box")
@@ -297,7 +298,7 @@ def main(args):
 
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights,
-              "alpha_ct": args.alpha_ct, "alpha": args.alpha,
+              "alpha_ct": args.alpha_ct, "alpha": args.alpha, "exp_tc": args.exp_tc,
               "bbox_sampling": args.bbox_sampling, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step,
               "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)

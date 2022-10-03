@@ -41,10 +41,10 @@ class RetinaNetHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss):
+    def __init__(self, in_channels, num_anchors, num_classes, bl_weights, alpha_ct, alpha, exp_tc, gt_bbox_loss, st_bbox_loss):
         super().__init__()
         self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes, bl_weights)
-        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss)
+        self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha_ct, alpha, exp_tc, gt_bbox_loss, st_bbox_loss)
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Dict[str, Tensor]
@@ -168,7 +168,7 @@ class RetinaNetRegressionHead(nn.Module):
         "box_coder": det_utils.BoxCoder,
     }
 
-    def __init__(self, in_channels, num_anchors, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss):
+    def __init__(self, in_channels, num_anchors, bl_weights, alpha_ct, alpha, exp_tc, gt_bbox_loss, st_bbox_loss):
         super().__init__()
 
         conv = []
@@ -193,6 +193,7 @@ class RetinaNetRegressionHead(nn.Module):
         self.target_normalization = {'x': torch.zeros(4).to(bl_weights.device), 'x2': torch.zeros(4).to(bl_weights.device), 'num': 0}
         self.gt_bbox_loss = gt_bbox_loss
         self.st_bbox_loss = st_bbox_loss
+        self.exp_tc = exp_tc
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Tensor
@@ -289,11 +290,11 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
-                    score = torch.sigmoid(cls_logit)
+                    score = torch.sigmoid(cls_logit).detach()
                     alpha = self.alpha*torch.ones(num_foreground, 4, device=device)
-                    alpha[:, 2] *= torch.exp(-10*score)
-                    alpha[:, 3] *= torch.exp(-10*score)
-                    alpha = alpha[idx_stbox]
+                    alpha[:, 2] *= torch.exp(-self.exp_tc*score)
+                    alpha[:, 3] *= torch.exp(-self.exp_tc*score)
+                    alpha = alpha[idx_stbox, :]
 
                     if self.st_bbox_loss == 'l1':
                         det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
@@ -460,6 +461,7 @@ class RetinaNet(nn.Module):
         bl_weights=None,
         alpha_ct=1,
         alpha=0,
+        exp_tc=0,
         bbox_sampling='mean',
         bbp_coverage=0.0,
         bbp_sampling_step=0.5,
@@ -486,7 +488,7 @@ class RetinaNet(nn.Module):
         self.anchor_generator = anchor_generator
 
         if head is None:
-            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights, alpha_ct, alpha, gt_bbox_loss, st_bbox_loss)
+            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes, bl_weights, alpha_ct, alpha, exp_tc, gt_bbox_loss, st_bbox_loss)
         self.head = head
 
         if proposal_matcher is None:

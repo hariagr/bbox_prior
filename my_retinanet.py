@@ -290,7 +290,7 @@ class RetinaNetRegressionHead(nn.Module):
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
                     score = torch.sigmoid(cls_logit)
-                    alpha = self.alpha*torch.ones(num_foreground, 4)
+                    alpha = self.alpha*torch.ones(num_foreground, 4, device=device)
                     alpha[:, 2] *= torch.exp(-10*score)
                     alpha[:, 3] *= torch.exp(-10*score)
                     alpha = alpha[idx_stbox]

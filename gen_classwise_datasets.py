@@ -40,6 +40,8 @@ for cls in classes:
         pidx = list(set(range(0, nlabels)) - set(idx))
         ndf = udf.iloc[pidx]
 
+        ndf.to_csv(os.path.join(file_path, str(cls) + '_pt' + str(int(100 - wl)) + '_box.csv'), index=False)
+
         xc = 0.5 * (ndf.xmin.values + ndf.xmax.values)
         yc = 0.5 * (ndf.ymin.values + ndf.ymax.values)
         ndf = ndf.assign(xmin=xc)
@@ -47,6 +49,7 @@ for cls in classes:
         ndf = ndf.assign(ymin=yc)
         ndf = ndf.assign(ymax=yc)
         ndf.to_csv(os.path.join(file_path, str(cls) + '_pt' + str(int(100 - wl)) + '.csv'), index=False)
+
 
 
 

@@ -199,9 +199,10 @@ class RetinaNetRegressionHead(nn.Module):
         losses = []
 
         bbox_regression = head_outputs["bbox_regression"]
+        cls_logits = head_outputs["cls_logits"]
 
-        for targets_per_image, bbox_regression_per_image, anchors_per_image, matched_idxs_per_image in zip(
-            targets, bbox_regression, anchors, matched_idxs
+        for targets_per_image, bbox_regression_per_image, anchors_per_image, matched_idxs_per_image, cls_logit in zip(
+            targets, bbox_regression, anchors, matched_idxs, cls_logits
         ):
             device = anchors_per_image.device
 
@@ -258,6 +259,8 @@ class RetinaNetRegressionHead(nn.Module):
             #weights_per_image = weights_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             beta_per_image = beta_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             idx_per_image = idx_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
+            cls_logit = cls_logit[foreground_idxs_per_image, :]
+            cls_logit = cls_logit[torch.arange(0, cls_logit.shape[0]), labels_per_image[matched_idxs_per_image[foreground_idxs_per_image]]]
 
             # compute the regression targets
             target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
@@ -286,12 +289,18 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
+                    score = torch.sigmoid(cls_logit)
+                    alpha = self.alpha*torch.ones(num_foreground, 4)
+                    alpha[:, 2] *= torch.exp(-10*score)
+                    alpha[:, 3] *= torch.exp(-10*score)
+                    alpha = alpha[idx_stbox]
+
                     if self.st_bbox_loss == 'l1':
-                        det_loss_per_image[idx_stbox] = self.alpha * (1 / beta_per_image[idx_stbox]) * \
+                        det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
                                                         det_l1_loss_per_image[
                                                             idx_stbox]
                     elif self.st_bbox_loss == 'l2':
-                        det_loss_per_image[idx_stbox] = self.alpha * (1 / beta_per_image[idx_stbox]) * \
+                        det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
                                                         det_l2_loss_per_image[
                                                             idx_stbox]
 

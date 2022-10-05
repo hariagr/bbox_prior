@@ -46,11 +46,11 @@ class RetinaNetHead(nn.Module):
         self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes, bl_weights)
         self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors, bl_weights, alpha_ct, alpha, exp_tc, gt_bbox_loss, st_bbox_loss)
 
-    def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
+    def compute_loss(self, targets, head_outputs, anchors, matched_idxs, epoch):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Dict[str, Tensor]
         return {
             "classification": self.classification_head.compute_loss(targets, head_outputs, matched_idxs),
-            "bbox_regression": self.regression_head.compute_loss(targets, head_outputs, anchors, matched_idxs),
+            "bbox_regression": self.regression_head.compute_loss(targets, head_outputs, anchors, matched_idxs, epoch),
         }
 
     def forward(self, x):
@@ -195,7 +195,7 @@ class RetinaNetRegressionHead(nn.Module):
         self.st_bbox_loss = st_bbox_loss
         self.exp_tc = exp_tc
 
-    def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
+    def compute_loss(self, targets, head_outputs, anchors, matched_idxs, epoch):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Tensor
         losses = []
 
@@ -290,11 +290,14 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
-                    score = torch.sigmoid(cls_logit).detach()
-                    alpha = self.alpha*torch.ones(num_foreground, 4, device=device)
-                    alpha[:, 2] *= torch.exp(-self.exp_tc*score)
-                    alpha[:, 3] *= torch.exp(-self.exp_tc*score)
-                    alpha = alpha[idx_stbox, :]
+                    if epoch > 10:
+                        score = torch.sigmoid(cls_logit).detach()
+                        alpha = self.alpha*torch.ones(num_foreground, 4, device=device)
+                        alpha[:, 2] *= torch.exp(-self.exp_tc*score)
+                        alpha[:, 3] *= torch.exp(-self.exp_tc*score)
+                        alpha = alpha[idx_stbox, :]
+                    else:
+                        alpha = self.alpha
 
                     if self.st_bbox_loss == 'l1':
                         det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
@@ -622,7 +625,7 @@ class RetinaNet(nn.Module):
             #avg_bpanchor = (torch.sum(bmatched_idxs >= 0) - torch.sum(tmatched_anchors))/ (targets_per_image["points"].shape[0])
             #print(f'box avg. anchors: {avg_banchor}, box avg. anchors: {avg_bpanchor}')
 
-        return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs)
+        return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs, self.epoch)
 
     def postprocess_detections(self, head_outputs, anchors, image_shapes):
         # type: (Dict[str, List[Tensor]], List[List[Tensor]], List[Tuple[int, int]]) -> List[Dict[str, Tensor]]

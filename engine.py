@@ -15,6 +15,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, sc
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.6f}"))
     header = f"Epoch: [{epoch}]"
 
+    model.epoch = epoch
     lr_scheduler = None
     if epoch == 0:
         warmup_factor = 1.0 / 1000

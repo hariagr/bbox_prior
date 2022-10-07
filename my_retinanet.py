@@ -573,7 +573,7 @@ class RetinaNet(nn.Module):
                 xs = torch.linspace(-n, n, int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step, device=device))) + 1, device=device)
                 ws, hs = torch.meshgrid(xs, xs, indexing="ij")
 
-                st_boxes = torch.zeros(targets_per_image['points'].shape[0], 4)
+                st_boxes = torch.zeros(targets_per_image['points'].shape[0], 4, device=device)
                 for idx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
 
                     if self.bbox_sampling == 'mean':

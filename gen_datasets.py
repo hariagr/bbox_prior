@@ -6,28 +6,36 @@ import numpy as np
 
 random.seed(0)
 
-file_path = '../data/USD/annotations/'
+dataset = 'USD'
+train_file = 'train_usd50.csv'
+file_path = '../data/' + dataset + '/annotations/'
 wlimages = np.concatenate(([5], np.linspace(10, 90, 9)))
 
 # reading USD-50: randomly choosen 50% images
-df = pd.read_csv(os.path.join(file_path, 'train_usd50.csv'))
+df = pd.read_csv(os.path.join(file_path, train_file))
 # unique image names
 udf = df['image'].unique()
 nimg = udf.shape[0]
 
-## under-representation (work with only single class)
-## show atleast 10-20 images with bounding boxes for a particular class
-
-for wl in wlimages:
-    idx = random.sample(range(0, nimg), math.ceil(nimg*wl/100))
+numbers = list(range(0, nimg))
+for loc, wl in enumerate(wlimages):
+    if loc == 0:
+        idx = random.sample(numbers, math.ceil(nimg * wl / 100))
+        wlprev = wl
+    else:
+        cidx = list(set(numbers) - set(idx))
+        idx.extend(random.sample(cidx, math.ceil(nimg * (wl - wlprev) / 100)))
+        wlprev = wl
 
     # well-labeled images
     ndf = df[df['image'].isin(udf[idx])]
-    ndf.to_csv(os.path.join(file_path, 'train_usd50_wl' + str(int(wl)) + '.csv'), index=False)
+    ndf.to_csv(os.path.join(file_path, dataset.lower() + '_wl' + str(int(wl)) + '.csv'), index=False)
 
     # well-labeled to point annotation (replace box with points)
-    idx = list(set(range(0,nimg)) - set(idx))
-    ndf = df[df['image'].isin(udf[idx])]
+    pidx = list(set(range(0, nimg)) - set(idx))
+    ndf = df[df['image'].isin(udf[pidx])]
+
+    ndf.to_csv(os.path.join(file_path, dataset.lower() + '_pt' + str(int(100 - wl)) + '_box.csv'), index=False)
 
     xc = 0.5 * (ndf.xmin.values + ndf.xmax.values)
     yc = 0.5 * (ndf.ymin.values + ndf.ymax.values)
@@ -35,4 +43,4 @@ for wl in wlimages:
     ndf = ndf.assign(xmax=xc)
     ndf = ndf.assign(ymin=yc)
     ndf = ndf.assign(ymax=yc)
-    ndf.to_csv(os.path.join(file_path, 'train_usd50_pt' + str(int(100 - wl)) + '.csv'), index=False)
+    ndf.to_csv(os.path.join(file_path, dataset.lower() + '_pt' + str(int(100 - wl)) + '.csv'), index=False)

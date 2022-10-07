@@ -290,11 +290,11 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
-                    if epoch > 10:
+                    if epoch >= 0:
                         score = torch.sigmoid(cls_logit).detach()
-                        alpha = self.alpha*torch.ones(num_foreground, 4, device=device)
-                        alpha[:, 2] *= torch.exp(-self.exp_tc*score)
-                        alpha[:, 3] *= torch.exp(-self.exp_tc*score)
+                        alpha = self.alpha * torch.ones(num_foreground, 4, device=device)
+                        alpha[:, 2] *= torch.exp(-self.exp_tc * score)
+                        alpha[:, 3] *= torch.exp(-self.exp_tc * score)
                         alpha = alpha[idx_stbox, :]
                     else:
                         alpha = self.alpha
@@ -324,7 +324,14 @@ class RetinaNetRegressionHead(nn.Module):
             # balancing
             det_loss_per_image = bl_det_weights * det_loss_per_image
 
-            loss_per_image = sum(sum(det_loss_per_image)) / max(1, num_foreground)
+            idx_gtbox = torch.where(idx_per_image == -1)[0]
+            idx_stbox = torch.where(idx_per_image >= 0)[0]
+            gt_loss = sum(sum(det_loss_per_image[idx_gtbox, :])) / max(1, num_foreground - idx_stbox.numel()) if idx_gtbox.numel() != 0 else 0
+            st_loss = sum(sum(det_loss_per_image[idx_stbox, :])) / max(1, idx_stbox.numel()) if idx_stbox.numel() != 0 else 0
+
+            loss_per_image = gt_loss + st_loss
+
+            #loss_per_image = sum(sum(det_loss_per_image)) / max(1, num_foreground)
             losses.append(loss_per_image)
 
         if self.cal_tnorm_weights:

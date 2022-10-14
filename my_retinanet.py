@@ -109,10 +109,11 @@ class RetinaNetClassificationHead(nn.Module):
             # determine anchors associated with well-labelled bounding boxes
             gt_foreground_idxs_per_image = (matched_idxs_per_image >= 0) & (
                         matched_idxs_per_image < targets_per_image['labels'].numel())
+            num_gt_foreground = gt_foreground_idxs_per_image.sum()
 
             # determine anchors associated with points
-            #points_foreground_idxs_per_image = matched_idxs_per_image >= targets_per_image['labels'].numel()
-            #num_points_foreground = points_foreground_idxs_per_image.sum()
+            points_foreground_idxs_per_image = matched_idxs_per_image >= targets_per_image['labels'].numel()
+            num_points_foreground = points_foreground_idxs_per_image.sum()
 
             # determine only the foreground
             foreground_idxs_per_image = matched_idxs_per_image >= 0
@@ -136,14 +137,17 @@ class RetinaNetClassificationHead(nn.Module):
             )
             loss_per_image = loss_per_image * self.bl_weights
 
-            #points_foreground_idxs_per_image = foreground_idxs_per_image[valid_idxs_per_image]
+            points_foreground_idxs_per_image = points_foreground_idxs_per_image[valid_idxs_per_image]
             gt_foreground_idxs_per_image = gt_foreground_idxs_per_image[valid_idxs_per_image]
+            background_idx_per_image = ~foreground_idxs_per_image
+            background_idx_per_image = background_idx_per_image[valid_idxs_per_image]
 
-            gt_loss = loss_per_image[torch.where(gt_foreground_idxs_per_image)[0], :].sum()/max(1, gt_foreground_idxs_per_image.sum())
-            st_loss = loss_per_image[torch.where(~gt_foreground_idxs_per_image)[0], :].sum()/max(1, num_foreground - gt_foreground_idxs_per_image.sum())
-            #print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, total:{gt_loss + st_loss}, old:{loss_per_image.sum()/ max(1, num_foreground)}")
+            gt_loss = loss_per_image[torch.where(gt_foreground_idxs_per_image)[0], :].sum()/max(1, num_gt_foreground)
+            st_loss = loss_per_image[torch.where(points_foreground_idxs_per_image)[0], :].sum()/max(1, num_points_foreground)
+            bg_loss = loss_per_image[torch.where(background_idx_per_image)[0], :].sum()/max(1, num_foreground)
+            #print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, bg_loss:{bg_loss}")
             #loss_per_image = loss_per_image.sum() / max(1, num_foreground)
-            loss_per_image = gt_loss + st_loss
+            loss_per_image = gt_loss + st_loss + bg_loss
             losses.append(loss_per_image)
 
         return _sum(losses) / len(targets)

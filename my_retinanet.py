@@ -106,9 +106,13 @@ class RetinaNetClassificationHead(nn.Module):
             # combine labels for deterministic boxes and stochastic boxes
             targets_per_image_label = torch.cat((targets_per_image['labels'], targets_per_image['plabels']), 0)
 
+            # determine anchors associated with well-labelled bounding boxes
+            gt_foreground_idxs_per_image = (matched_idxs_per_image >= 0) & (
+                        matched_idxs_per_image < targets_per_image['labels'].numel())
+
             # determine anchors associated with points
-            points_foreground_idxs_per_image = matched_idxs_per_image >= targets_per_image['labels'].numel()
-            num_points_foreground = points_foreground_idxs_per_image.sum()
+            #points_foreground_idxs_per_image = matched_idxs_per_image >= targets_per_image['labels'].numel()
+            #num_points_foreground = points_foreground_idxs_per_image.sum()
 
             # determine only the foreground
             foreground_idxs_per_image = matched_idxs_per_image >= 0
@@ -131,8 +135,16 @@ class RetinaNetClassificationHead(nn.Module):
                 reduction='none',
             )
             loss_per_image = loss_per_image * self.bl_weights
-            loss_per_image = loss_per_image.sum()
-            losses.append(loss_per_image / max(1, num_foreground))
+
+            #points_foreground_idxs_per_image = foreground_idxs_per_image[valid_idxs_per_image]
+            gt_foreground_idxs_per_image = gt_foreground_idxs_per_image[valid_idxs_per_image]
+
+            gt_loss = loss_per_image[torch.where(gt_foreground_idxs_per_image)[0], :].sum()/max(1, gt_foreground_idxs_per_image.sum())
+            st_loss = loss_per_image[torch.where(~gt_foreground_idxs_per_image)[0], :].sum()/max(1, num_foreground - gt_foreground_idxs_per_image.sum())
+            #print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, total:{gt_loss + st_loss}, old:{loss_per_image.sum()/ max(1, num_foreground)}")
+            #loss_per_image = loss_per_image.sum() / max(1, num_foreground)
+            loss_per_image = gt_loss + st_loss
+            losses.append(loss_per_image)
 
         return _sum(losses) / len(targets)
 

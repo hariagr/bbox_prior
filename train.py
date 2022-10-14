@@ -39,6 +39,7 @@ from target_normalization import cal_tnorm_weights
 from bbox_priors import cal_bbox_priors
 from cal_bbox_prior_hp import cal_bbox_prior_hp
 from draw_det import draw_det
+from gen_pseudobox import gen_box_from_point
 
 import platform
 
@@ -155,6 +156,13 @@ def get_args_parser(add_help=True):
         help="Only test the model",
         action="store_true",
     )
+    parser.add_argument(
+        "--gen-pseudobox",
+        dest="gen_pseudobox",
+        help="generate pseudo box from point",
+        action="store_true",
+    )
+    parser.add_argument("--append-file", default=None, type=str, help="file that will be appended with generated pseudo boxes")
     parser.add_argument(
         "--pretrained",
         dest="pretrained",
@@ -304,13 +312,16 @@ def main(args):
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
 
-    if args.test_only:
+    if args.test_only or args.gen_pseudobox:
         checkpoint = torch.load(args.resume, map_location="cpu")
         model.load_state_dict(checkpoint["model"])
         model.eval()
         results_folder = args.results_dir + args.config
         utils.mkdir(results_folder)
-        draw_det(model, data_loader_val, device=device, folder=results_folder)
+        if args.gen_pseudobox:
+            gen_box_from_point(model, data_loader, folder=results_folder, append_file=os.path.join(annotations_path, args.append_file))
+        else:
+            draw_det(model, data_loader_val, device=device, folder=results_folder)
         return
 
     if args.train_points_file is not None or args.tune_bbox_coverage:

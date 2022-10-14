@@ -98,6 +98,11 @@ class RetinaNetClassificationHead(nn.Module):
     def compute_loss(self, targets, head_outputs, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Tensor
         losses = []
+        gt_losses = []
+        st_losses = []
+        bg_losses = []
+        len_gt_targets = 0
+        len_st_targets = 0
 
         cls_logits = head_outputs["cls_logits"]
 
@@ -147,10 +152,19 @@ class RetinaNetClassificationHead(nn.Module):
             bg_loss = loss_per_image[torch.where(background_idx_per_image)[0], :].sum()/max(1, num_foreground)
             #print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, bg_loss:{bg_loss}")
             #loss_per_image = loss_per_image.sum() / max(1, num_foreground)
-            loss_per_image = gt_loss + st_loss + bg_loss
-            losses.append(loss_per_image)
+            #loss_per_image = gt_loss + st_loss + bg_loss
+            #losses.append(loss_per_image)
+            gt_losses.append(gt_loss)
+            st_losses.append(st_loss)
+            bg_losses.append(bg_loss)
+            if targets_per_image['labels'].numel() > 0:
+                len_gt_targets = len_gt_targets + 1
+            if targets_per_image['plabels'].numel() > 0:
+                len_st_targets = len_st_targets + 1
 
-        return _sum(losses) / len(targets)
+        loss = _sum(gt_losses) / max(1, len_gt_targets) + _sum(st_losses) / max(1, len_st_targets) + _sum(bg_losses) / max(1, (len_gt_targets + len_st_targets))
+        return loss
+        #return _sum(losses) / len(targets)
 
     def forward(self, x):
         # type: (List[Tensor]) -> Tensor

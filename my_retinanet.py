@@ -639,22 +639,25 @@ class RetinaNet(nn.Module):
                     stochastic_boxes = torch.stack([x1.flatten(), y1.flatten(), x2.flatten(), y2.flatten()], 1)
 
                     if n != 0.0:
-                        # find all anchors lies inside the outermost stochastic box
-                        outer_box = stochastic_boxes[-1, :].reshape(1, -1)
-                        all_inner_matched_idx = self.proposal_matcher(utils.box_ioa(outer_box, anchors[0]))
-                        all_inner_anchors = anchors[0][all_inner_matched_idx >= 0]
+                        if 0:
+                            # find all anchors lies inside the outermost stochastic box
+                            outer_box = stochastic_boxes[-1, :].reshape(1, -1)
+                            all_inner_matched_idx = self.proposal_matcher(utils.box_ioa(outer_box, anchors[0]))
+                            all_inner_anchors = anchors[0][all_inner_matched_idx >= 0]
 
-                        # compute IOU between stochastic boxes and anchors
-                        quality_matrix = box_ops.box_iou(stochastic_boxes, all_inner_anchors)
+                            # compute IOU between stochastic boxes and anchors
+                            quality_matrix = box_ops.box_iou(stochastic_boxes, all_inner_anchors)
 
-                        # maximum over anchors: idea is to allocate one set of anchors for one point annotation irrespective of stochastic box
-                        quality_matrix = torch.max(quality_matrix, 0)[0]
-                        pmatch_quality_matrix[idx, all_inner_matched_idx >= 0] = quality_matrix.reshape(1, -1)
+                            # maximum over anchors: idea is to allocate one set of anchors for one point annotation irrespective of stochastic box
+                            quality_matrix = torch.max(quality_matrix, 0)[0]
+                            pmatch_quality_matrix[idx, all_inner_matched_idx >= 0] = quality_matrix.reshape(1, -1)
+                        else:
+                            st_boxes[idx, :] = stochastic_boxes[torch.randint(0, stochastic_boxes.shape[0], (1,))[0]]
                     else:
                         st_boxes[idx, :] = stochastic_boxes
 
-                if n == 0.0:
-                    pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)
+                #if n == 0.0:
+                pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)
 
                 match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
                 bmatched_idxs = self.proposal_matcher(match_quality_matrix)

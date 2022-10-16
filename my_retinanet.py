@@ -113,7 +113,7 @@ class RetinaNetClassificationHead(nn.Module):
 
             # determine anchors associated with well-labelled bounding boxes
             gt_foreground_idxs_per_image = (matched_idxs_per_image >= 0) & (
-                        matched_idxs_per_image < targets_per_image['labels'].numel())
+                    matched_idxs_per_image < targets_per_image['labels'].numel())
             num_gt_foreground = gt_foreground_idxs_per_image.sum()
 
             # determine anchors associated with points
@@ -126,10 +126,16 @@ class RetinaNetClassificationHead(nn.Module):
 
             # create the target classification
             gt_classes_target = torch.zeros_like(cls_logits_per_image)
-            gt_classes_target[
-                foreground_idxs_per_image,
-                targets_per_image_label[matched_idxs_per_image[foreground_idxs_per_image]],
-            ] = 1.0
+            if targets_per_image['labels'].numel() > 0:
+                gt_classes_target[
+                    gt_foreground_idxs_per_image,
+                    targets_per_image_label[matched_idxs_per_image[gt_foreground_idxs_per_image]],
+                ] = 1.0
+            if targets_per_image['plabels'].numel() > 0:
+                gt_classes_target[
+                    points_foreground_idxs_per_image,
+                    targets_per_image_label[matched_idxs_per_image[points_foreground_idxs_per_image]],
+                ] = 0.9
 
             # find indices for which anchors should be ignored
             valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
@@ -147,13 +153,14 @@ class RetinaNetClassificationHead(nn.Module):
             background_idx_per_image = ~foreground_idxs_per_image
             background_idx_per_image = background_idx_per_image[valid_idxs_per_image]
 
-            gt_loss = loss_per_image[torch.where(gt_foreground_idxs_per_image)[0], :].sum()/max(1, num_gt_foreground)
-            st_loss = loss_per_image[torch.where(points_foreground_idxs_per_image)[0], :].sum()/max(1, num_points_foreground)
-            bg_loss = loss_per_image[torch.where(background_idx_per_image)[0], :].sum()/max(1, num_foreground)
-            #print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, bg_loss:{bg_loss}")
-            #loss_per_image = loss_per_image.sum() / max(1, num_foreground)
-            #loss_per_image = gt_loss + st_loss + bg_loss
-            #losses.append(loss_per_image)
+            gt_loss = loss_per_image[torch.where(gt_foreground_idxs_per_image)[0], :].sum() / max(1, num_gt_foreground)
+            st_loss = loss_per_image[torch.where(points_foreground_idxs_per_image)[0], :].sum() / max(1,
+                                                                                                      num_points_foreground)
+            bg_loss = loss_per_image[torch.where(background_idx_per_image)[0], :].sum() / max(1, num_foreground)
+            # print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, bg_loss:{bg_loss}")
+            loss_per_image = loss_per_image.sum() / max(1, num_foreground)
+            # loss_per_image = gt_loss + st_loss + bg_loss
+            losses.append(loss_per_image)
             gt_losses.append(gt_loss)
             st_losses.append(st_loss)
             bg_losses.append(bg_loss)
@@ -162,9 +169,13 @@ class RetinaNetClassificationHead(nn.Module):
             if targets_per_image['plabels'].numel() > 0:
                 len_st_targets = len_st_targets + 1
 
-        loss = _sum(gt_losses) / max(1, len_gt_targets) + _sum(st_losses) / max(1, len_st_targets) + _sum(bg_losses) / max(1, (len_gt_targets + len_st_targets))
+        if 0:
+            loss = _sum(gt_losses) / max(1, len_gt_targets) + 1 * _sum(st_losses) / max(1, len_st_targets) + _sum(
+                bg_losses) / max(1, (len_gt_targets + len_st_targets))
+        else:
+            loss = _sum(losses) / len(targets)
         return loss
-        #return _sum(losses) / len(targets)
+        # return _sum(losses) / len(targets)
 
     def forward(self, x):
         # type: (List[Tensor]) -> Tensor

@@ -1,7 +1,9 @@
-import torch
+import numpy as np
+from noisyopt import minimizeCompass
 import pandas as pd
 from scipy import stats
-import numpy as np
+from torchvision.ops import boxes as box_ops
+import torch
 
 def cal_bbox_priors(model, dataloader, device):
     model.train()
@@ -45,6 +47,8 @@ def cal_bbox_priors(model, dataloader, device):
                    "logOfheight_std": torch.zeros(num_classes, dtype=torch.float32),
                    "width_mode": torch.zeros(num_classes, dtype=torch.float32),
                    "height_mode": torch.zeros(num_classes, dtype=torch.float32),
+                   "width_mean_IOU": torch.zeros(num_classes, dtype=torch.float32),
+                   "height_mean_IOU": torch.zeros(num_classes, dtype=torch.float32),
                    }
 
     for idx, df_grp in gdf:
@@ -62,6 +66,10 @@ def cal_bbox_priors(model, dataloader, device):
 
         bbox_priors["width_mode"][idx] = torch.as_tensor(cal_mode(df_grp['width']), dtype=torch.float32)
         bbox_priors["height_mode"][idx] = torch.as_tensor(cal_mode(df_grp['height']), dtype=torch.float32)
+
+        bbox = cal_mean_IOU_box(df_grp)
+        bbox_priors["width_mean_IOU"][idx] = torch.as_tensor(bbox[0], dtype=torch.float32)
+        bbox_priors["height_mean_IOU"][idx] = torch.as_tensor(bbox[1], dtype=torch.float32)
 
     model.bbox_priors = bbox_priors
     model.head.bbox_priors = bbox_priors
@@ -82,3 +90,39 @@ def cal_mode(data, num_points = 500):
     # plt.plot(X_plot, prob)
     # mean = np.mean(width)
     # mean2 = np.sum(prob*X_plot)/np.sum(prob)
+
+def cal_mean_IOU_box(df):
+
+    def cal_loss(x, bboxa, prob):
+        bboxb = torch.tensor([-0.5 * x[0], -0.5 * x[1], 0.5 * x[0], 0.5 * x[1]]).reshape(-1, 1)
+        iou = box_ops.box_iou(bboxa.T, bboxb.T)
+        L = - (1 / bboxa.shape[1]) * np.sum(np.multiply(iou.numpy().flatten(), prob.flatten()))
+        return L
+
+    num_points = 100
+
+    wh = np.stack([df['width'], df['height']])
+    kernel = stats.gaussian_kde(wh)
+
+    mu = np.array([stats.tmean(wh[0]), stats.tmean(wh[1])])
+    std = np.array([stats.tstd(wh[0]), stats.tstd(wh[1])])
+
+    ub = np.array((mu + 3 * std, wh.max(axis=1))).min(axis=0)
+    lb = np.array((mu - 3 * std, wh.min(axis=1))).max(axis=0)
+
+    x = np.linspace(lb[0], ub[0], num_points).reshape(1, -1)
+    y = np.linspace(lb[1], ub[1], num_points).reshape(1, -1)
+    xv, yv = np.meshgrid(x, y, indexing='ij')
+    xi = np.array([xv.flatten(), yv.flatten()])
+    prob = kernel(xi)
+
+    xi = torch.tensor(np.array([xv.flatten(), yv.flatten()]))
+    bboxa = torch.stack([-0.5 * xi[0], -0.5 * xi[1], 0.5 * xi[0], 0.5 * xi[1]])
+
+    obj = lambda x: cal_loss(x, bboxa, prob)
+    bounds = np.array([[lb[0], ub[0]], [lb[1], ub[1]]])
+    res = minimizeCompass(obj, x0=mu, bounds=bounds, deltatol=1e-6, paired=False, errorcontrol=False, disp=False)
+
+    print(f"x0: {mu}, x*: {res.x}")
+
+    return res.x

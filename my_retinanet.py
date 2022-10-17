@@ -609,6 +609,9 @@ class RetinaNet(nn.Module):
                 bmatched_idxs = torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)
 
             if targets_per_image['points'].numel() != 0:
+
+                boxes_per_level = self.box_coder.decode_single(bbox_regression_per_image, anchors_per_image)
+
                 # assuming stochastic boxes are the samples of probability distribution between
                 # mu - n * sigma to mu + n * sigma
                 n = self.bbox_prior_coverage
@@ -664,11 +667,15 @@ class RetinaNet(nn.Module):
                     else:
                         st_boxes[idx, :] = stochastic_boxes
 
-                # filtering: choose a fixed stochastic box or anchor as a stochastic box
-                #boxes_per_level = self.box_coder.decode_single(
-                #    bbox_regression_per_image, anchors_per_image
-                #)
-                # distance between
+                    # filtering: choose a fixed stochastic box or anchor as a stochastic box
+                    # IOU between predicted box and stochastic box
+                    iou = box_ops.box_iou(st_boxes[idx, :].reshape(1, -1), boxes_per_level)
+                    overlap_indx = torch.where(iou >= 0.5)[1]
+                    if overlap_indx.numel() > 0:
+                        sel_boxes = boxes_per_level[overlap_indx, :]
+                        pred_center = sel_boxes[:, 0:2] + 0.5*(sel_boxes[:, 2:4] - sel_boxes[:, 0:2])
+                        distance = torch.sqrt(torch.sum((pred_center - center) ** 2, 1))
+                        st_boxes[idx, :] = sel_boxes[torch.argmin(distance), :]
 
                 #if n == 0.0:
                 pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)

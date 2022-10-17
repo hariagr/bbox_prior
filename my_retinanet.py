@@ -583,9 +583,12 @@ class RetinaNet(nn.Module):
     def compute_loss(self, targets, head_outputs, anchors):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Dict[str, Tensor]
 
+        bbox_regression = head_outputs['bbox_regression']
+
         matched_idxs = []
-        for anchors_per_image, targets_per_image in zip(anchors, targets):
+        for anchors_per_image, targets_per_image, bbox_regression_per_image in zip(anchors, targets, bbox_regression):
             device = anchors_per_image.device
+
             if targets_per_image["boxes"].numel() == 0 and targets_per_image['points'].numel() == 0 and \
                     targets_per_image["gboxes"].numel() == 0 and targets_per_image["mboxes"].numel() == 0:
                 matched_idxs.append(
@@ -627,6 +630,11 @@ class RetinaNet(nn.Module):
                         height_mu = self.bbox_priors['height_mode'][label]
                         width_std = self.bbox_priors['width_std'][label]
                         height_std = self.bbox_priors['height_std'][label]
+                    elif self.bbox_sampling == 'mean_IOU':
+                        width_mu = self.bbox_priors['width_mean_IOU'][label]
+                        height_mu = self.bbox_priors['height_mean_IOU'][label]
+                        width_std = self.bbox_priors['width_std'][label]
+                        height_std = self.bbox_priors['height_std'][label]
                     else:
                         print(f"{self.bbox_sampling} sampling method is not implemented!")
 
@@ -652,9 +660,15 @@ class RetinaNet(nn.Module):
                             quality_matrix = torch.max(quality_matrix, 0)[0]
                             pmatch_quality_matrix[idx, all_inner_matched_idx >= 0] = quality_matrix.reshape(1, -1)
                         else:
-                            st_boxes[idx, :] = stochastic_boxes[torch.randint(0, stochastic_boxes.shape[0], (1,))[0]]
+                            st_boxes[idx, :] = stochastic_boxes[torch.randint(0, stochastic_boxes.shape[0], (1,))[0]]  # random op reproducible or not
                     else:
                         st_boxes[idx, :] = stochastic_boxes
+
+                # filtering: choose a fixed stochastic box or anchor as a stochastic box
+                #boxes_per_level = self.box_coder.decode_single(
+                #    bbox_regression_per_image, anchors_per_image
+                #)
+                # distance between
 
                 #if n == 0.0:
                 pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)

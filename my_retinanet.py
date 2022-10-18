@@ -583,7 +583,7 @@ class RetinaNet(nn.Module):
     def compute_loss(self, targets, head_outputs, anchors):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Dict[str, Tensor]
 
-        bbox_regression = head_outputs['bbox_regression']
+        bbox_regression = head_outputs['bbox_regression'].detach()
 
         matched_idxs = []
         for anchors_per_image, targets_per_image, bbox_regression_per_image in zip(anchors, targets, bbox_regression):

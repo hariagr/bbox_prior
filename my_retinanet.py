@@ -256,11 +256,15 @@ class RetinaNetRegressionHead(nn.Module):
             idx_stbox = torch.zeros((targets_per_image['plabels'].numel(), 1), dtype=torch.int32, device=device)
             if targets_per_image['points'].numel() != 0:
                 for indx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
-                    x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
-                    x2 = center[0] + 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
-                    y1 = center[1] - 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
-                    y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
-                    stochastic_box[indx] = torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)
+                    if 0:
+                        x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
+                        x2 = center[0] + 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
+                        y1 = center[1] - 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
+                        y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
+                        stochastic_box[indx] = torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)
+                    else:
+                        stochastic_box[indx] = targets_per_image['st_boxes'][indx]
+
                     #weights_stbox = torch.cat((weights_stbox, self.alpha*torch.tensor(
                     #    [1, 1, 1 / self.bbox_priors['logOfwidth_std'][label],
                     #     1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
@@ -586,7 +590,7 @@ class RetinaNet(nn.Module):
         bbox_regression = head_outputs['bbox_regression'].detach()
 
         matched_idxs = []
-        for anchors_per_image, targets_per_image, bbox_regression_per_image in zip(anchors, targets, bbox_regression):
+        for img_idx, (anchors_per_image, targets_per_image, bbox_regression_per_image) in enumerate(zip(anchors, targets, bbox_regression)):
             device = anchors_per_image.device
 
             if targets_per_image["boxes"].numel() == 0 and targets_per_image['points'].numel() == 0 and \
@@ -678,6 +682,7 @@ class RetinaNet(nn.Module):
                         st_boxes[idx, :] = sel_boxes[torch.argmin(distance), :]
 
                 #if n == 0.0:
+                targets[img_idx]['st_boxes'] = st_boxes     # store st boxes for box regression
                 pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)
 
                 match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))

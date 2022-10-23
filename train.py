@@ -409,7 +409,7 @@ def main(args):
             if args.amp:
                 checkpoint["scaler"] = scaler.state_dict()
             #utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, args.config + time.strftime('%Y%m%d_%H%M%S',
+            utils.save_on_master(checkpoint, os.path.join(args.output_dir, args.config + '_' + str(epoch) + '_' + time.strftime('%Y%m%d_%H%M%S',
                                                                                                 time.localtime(
                                                                                                     start_time)) + ".pth"))
         # evaluate after every epoch

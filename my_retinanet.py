@@ -679,7 +679,7 @@ class RetinaNet(nn.Module):
                     credible_box_indx = torch.where((iou >= 0.5) & (score >= 0.2))[1]
                     if credible_box_indx.numel() > 0:
                         sel_boxes = pred_boxes[credible_box_indx, :]
-                        score = score[credible_box_indx]
+                        score = score[0, credible_box_indx]
                         pred_center = sel_boxes[:, 0:2] + 0.5*(sel_boxes[:, 2:4] - sel_boxes[:, 0:2])
                         distance = torch.sum((pred_center - center) ** 2, 1)
                         sel_boxes_index = torch.argmax(torch.exp(-distance)*score)

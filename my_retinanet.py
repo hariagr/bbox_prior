@@ -615,7 +615,7 @@ class RetinaNet(nn.Module):
 
             if targets_per_image['points'].numel() != 0:
 
-                boxes_per_level = self.box_coder.decode_single(bbox_regression_per_image, anchors_per_image)
+                pred_boxes = self.box_coder.decode_single(bbox_regression_per_image, anchors_per_image)
 
                 # assuming stochastic boxes are the samples of probability distribution between
                 # mu - n * sigma to mu + n * sigma
@@ -674,14 +674,19 @@ class RetinaNet(nn.Module):
 
                     # filtering: choose a fixed stochastic box or anchor as a stochastic box
                     # IOU between predicted box and stochastic box
-                    iou = box_ops.box_iou(st_boxes[idx, :].reshape(1, -1), boxes_per_level)
-                    overlap_indx = torch.where(iou >= 0.5)[1]
-                    if overlap_indx.numel() > 0:
-                        sel_boxes = boxes_per_level[overlap_indx, :]
+                    iou = box_ops.box_iou(st_boxes[idx, :].reshape(1, -1), pred_boxes)
+                    score = cls_scores_per_image[:, label].reshape(1, -1)
+                    credible_box_indx = torch.where((iou >= 0.5) & (score >= 0.2))[1]
+                    if credible_box_indx.numel() > 0:
+                        sel_boxes = pred_boxes[credible_box_indx, :]
+                        score = score[credible_box_indx]
                         pred_center = sel_boxes[:, 0:2] + 0.5*(sel_boxes[:, 2:4] - sel_boxes[:, 0:2])
-                        distance = torch.sqrt(torch.sum((pred_center - center) ** 2, 1))
-                        st_boxes[idx, :] = sel_boxes[torch.argmin(distance), :]
-
+                        distance = torch.sum((pred_center - center) ** 2, 1)
+                        sel_boxes_index = torch.argmax(torch.exp(-distance)*score)
+                        st_boxes[idx, :] = sel_boxes[sel_boxes_index, :]
+                        print(f'predicted box is choosen! d:{distance[sel_boxes_index]}, s:{score[sel_boxes_index]}')
+                    else:
+                        print('mean-IOU box is choosen!')
                 #if n == 0.0:
                 targets[img_idx]['st_boxes'] = st_boxes     # store st boxes for box regression
                 pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)

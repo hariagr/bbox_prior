@@ -98,12 +98,6 @@ class RetinaNetClassificationHead(nn.Module):
     def compute_loss(self, targets, head_outputs, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Tensor
         losses = []
-        gt_losses = []
-        st_losses = []
-        bg_losses = []
-        len_gt_targets = 0
-        len_st_targets = 0
-
         cls_logits = head_outputs["cls_logits"]
 
         for targets_per_image, cls_logits_per_image, matched_idxs_per_image in zip(targets, cls_logits, matched_idxs):
@@ -111,31 +105,16 @@ class RetinaNetClassificationHead(nn.Module):
             # combine labels for deterministic boxes and stochastic boxes
             targets_per_image_label = torch.cat((targets_per_image['labels'], targets_per_image['plabels']), 0)
 
-            # determine anchors associated with well-labelled bounding boxes
-            gt_foreground_idxs_per_image = (matched_idxs_per_image >= 0) & (
-                    matched_idxs_per_image < targets_per_image['labels'].numel())
-            num_gt_foreground = gt_foreground_idxs_per_image.sum()
-
-            # determine anchors associated with points
-            points_foreground_idxs_per_image = matched_idxs_per_image >= targets_per_image['labels'].numel()
-            num_points_foreground = points_foreground_idxs_per_image.sum()
-
             # determine only the foreground
             foreground_idxs_per_image = matched_idxs_per_image >= 0
             num_foreground = foreground_idxs_per_image.sum()
 
             # create the target classification
             gt_classes_target = torch.zeros_like(cls_logits_per_image)
-            if targets_per_image['labels'].numel() > 0:
-                gt_classes_target[
-                    gt_foreground_idxs_per_image,
-                    targets_per_image_label[matched_idxs_per_image[gt_foreground_idxs_per_image]],
-                ] = 1.0
-            if targets_per_image['plabels'].numel() > 0:
-                gt_classes_target[
-                    points_foreground_idxs_per_image,
-                    targets_per_image_label[matched_idxs_per_image[points_foreground_idxs_per_image]],
-                ] = 1.0
+            gt_classes_target[
+                foreground_idxs_per_image,
+                targets_per_image_label[matched_idxs_per_image[foreground_idxs_per_image]],
+            ] = 1.0
 
             # find indices for which anchors should be ignored
             valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
@@ -147,35 +126,10 @@ class RetinaNetClassificationHead(nn.Module):
                 reduction='none',
             )
             loss_per_image = loss_per_image * self.bl_weights
-
-            #points_foreground_idxs_per_image = points_foreground_idxs_per_image[valid_idxs_per_image]
-            #gt_foreground_idxs_per_image = gt_foreground_idxs_per_image[valid_idxs_per_image]
-            #background_idx_per_image = ~foreground_idxs_per_image
-            #background_idx_per_image = background_idx_per_image[valid_idxs_per_image]
-
-            #gt_loss = loss_per_image[torch.where(gt_foreground_idxs_per_image)[0], :].sum() / max(1, num_gt_foreground)
-            #st_loss = loss_per_image[torch.where(points_foreground_idxs_per_image)[0], :].sum() / max(1,
-            #                                                                                          num_points_foreground)
-            #bg_loss = loss_per_image[torch.where(background_idx_per_image)[0], :].sum() / max(1, num_foreground)
-            # print(f"gt_loss: {gt_loss}, st_loss:{st_loss}, bg_loss:{bg_loss}")
             loss_per_image = loss_per_image.sum() / max(1, num_foreground)
-            # loss_per_image = gt_loss + st_loss + bg_loss
             losses.append(loss_per_image)
-            #gt_losses.append(gt_loss)
-            #st_losses.append(st_loss)
-            #bg_losses.append(bg_loss)
-            #if targets_per_image['labels'].numel() > 0:
-            #    len_gt_targets = len_gt_targets + 1
-            #if targets_per_image['plabels'].numel() > 0:
-            #    len_st_targets = len_st_targets + 1
 
-        if 0:
-            loss = _sum(gt_losses) / max(1, len_gt_targets) + 1 * _sum(st_losses) / max(1, len_st_targets) + _sum(
-                bg_losses) / max(1, (len_gt_targets + len_st_targets))
-        else:
-            loss = _sum(losses) / len(targets)
-        return loss
-        # return _sum(losses) / len(targets)
+        return _sum(losses) / len(targets)
 
     def forward(self, x):
         # type: (List[Tensor]) -> Tensor
@@ -229,7 +183,8 @@ class RetinaNetRegressionHead(nn.Module):
 
         self.box_coder = det_utils.BoxCoder(weights=(1.0, 1.0, 1.0, 1.0))
         self.bl_weights = bl_weights
-        self.alpha = torch.tensor([alpha_ct, alpha_ct, alpha, alpha], device=bl_weights.device)
+        self.alpha_ct = alpha_ct
+        self.alpha = torch.tensor([1, 1, 0, 0], device=bl_weights.device)
         self.cal_tnorm_weights = False
         self.target_normalization = {'x': torch.zeros(4).to(bl_weights.device), 'x2': torch.zeros(4).to(bl_weights.device), 'num': 0}
         self.gt_bbox_loss = gt_bbox_loss
@@ -241,47 +196,35 @@ class RetinaNetRegressionHead(nn.Module):
         losses = []
 
         bbox_regression = head_outputs["bbox_regression"]
-        cls_logits = head_outputs["cls_logits"]
 
-        for targets_per_image, bbox_regression_per_image, anchors_per_image, matched_idxs_per_image, cls_logit in zip(
-            targets, bbox_regression, anchors, matched_idxs, cls_logits
+        for targets_per_image, bbox_regression_per_image, anchors_per_image, matched_idxs_per_image in zip(
+            targets, bbox_regression, anchors, matched_idxs
         ):
             device = anchors_per_image.device
 
             # The part of the loss function that is associated with points
             # assumes that the width of stochastic box is equal to mean. Hence, we extend points by mean value
             stochastic_box = torch.zeros((targets_per_image['plabels'].numel(), 4), device=device)
-            #weights_stbox = torch.tensor([], device=device)
             beta_stbox = torch.zeros((targets_per_image['plabels'].numel(), 4), device=device)
             idx_stbox = torch.zeros((targets_per_image['plabels'].numel(), 1), dtype=torch.int32, device=device)
             if targets_per_image['points'].numel() != 0:
                 for indx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
-                    if 1:
-                        x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
-                        x2 = center[0] + 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
-                        y1 = center[1] - 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
-                        y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
-                        stochastic_box[indx] = torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)
-                    else:
-                        stochastic_box[indx] = targets_per_image['st_boxes'][indx]
-
-                    #weights_stbox = torch.cat((weights_stbox, self.alpha*torch.tensor(
-                    #    [1, 1, 1 / self.bbox_priors['logOfwidth_std'][label],
-                    #     1 / self.bbox_priors['logOfheight_std'][label]], device=device).reshape(1, -1)), 0)
-                    idx_stbox[indx] = label  #torch.tensor(label.clone().detach(), device=device).reshape(1, -1)
+                    x1 = center[0] - 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
+                    x2 = center[0] + 0.5 * torch.exp(self.bbox_priors['logOfwidth_mean'][label])
+                    y1 = center[1] - 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
+                    y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
+                    stochastic_box[indx] = torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)
+                    idx_stbox[indx] = label
                     if not self.cal_tnorm_weights:
                         if self.st_bbox_loss == 'l1':
                             beta_stbox[indx] = torch.tensor(
-                                [1, 1, 1 + self.bbox_priors['target_width_std'][label],
-                                 1 + self.bbox_priors['target_height_std'][label]], device=device).reshape(1, -1)
+                                [1 + self.alpha_ct, 1 + self.alpha_ct, 1, 1], device=device).reshape(1, -1)
                         elif self.st_bbox_loss == 'l2':
                             beta_stbox[indx] = torch.tensor(
-                                [1, 1, 1 + self.bbox_priors['target_width_std'][label] ** 2,
-                                 1 + self.bbox_priors['target_height_std'][label] ** 2], device=device).reshape(1, -1)
+                                [1 + self.alpha_ct**2, 1 + self.alpha_ct**2, 1, 1], device=device).reshape(1, -1)
                     else:
                         beta_stbox[indx] = torch.tensor([1, 1, 1, 1], device=device).reshape(1, -1)
 
-            #weights_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             beta_box = torch.ones(targets_per_image['boxes'].shape, device=device)
             idx_box = -1*torch.ones(targets_per_image['boxes'].shape[0], dtype=torch.int32, device=device).reshape(-1, 1)
 
@@ -290,7 +233,6 @@ class RetinaNetRegressionHead(nn.Module):
             # Hence, we combine deterministic boxes and stochastic boxes array for computing target regression in one call
             boxes_per_image = torch.cat((targets_per_image['boxes'], stochastic_box))
             labels_per_image = torch.cat((targets_per_image['labels'], targets_per_image['plabels']), 0)
-            #weights_per_image = torch.cat((weights_box, weights_stbox), 0)
             beta_per_image = torch.cat((beta_box, beta_stbox), 0)
             idx_per_image = torch.cat((idx_box, idx_stbox), 0)
 
@@ -302,11 +244,8 @@ class RetinaNetRegressionHead(nn.Module):
             matched_gt_boxes_per_image = boxes_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             bbox_regression_per_image = bbox_regression_per_image[foreground_idxs_per_image, :]
             anchors_per_image = anchors_per_image[foreground_idxs_per_image, :]
-            #weights_per_image = weights_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             beta_per_image = beta_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
             idx_per_image = idx_per_image[matched_idxs_per_image[foreground_idxs_per_image]]
-            cls_logit = cls_logit[foreground_idxs_per_image, :]
-            cls_logit = cls_logit[torch.arange(0, cls_logit.shape[0]), labels_per_image[matched_idxs_per_image[foreground_idxs_per_image]]]
 
             # compute the regression targets
             target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
@@ -335,15 +274,7 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
-                    if epoch >= 0:
-                        score = torch.sigmoid(cls_logit).detach()
-                        alpha = self.alpha * torch.ones(num_foreground, 4, device=device)
-                        alpha[:, 2] *= torch.exp(-self.exp_tc * score)
-                        alpha[:, 3] *= torch.exp(-self.exp_tc * score)
-                        alpha = alpha[idx_stbox, :]
-                    else:
-                        alpha = self.alpha
-
+                    alpha = self.alpha
                     if self.st_bbox_loss == 'l1':
                         det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
                                                         det_l1_loss_per_image[
@@ -375,8 +306,6 @@ class RetinaNetRegressionHead(nn.Module):
             st_loss = sum(sum(det_loss_per_image[idx_stbox, :])) / max(1, idx_stbox.numel()) if idx_stbox.numel() != 0 else 0
 
             loss_per_image = gt_loss + st_loss
-
-            #loss_per_image = sum(sum(det_loss_per_image)) / max(1, num_foreground)
             losses.append(loss_per_image)
 
         if self.cal_tnorm_weights:
@@ -601,14 +530,10 @@ class RetinaNet(nn.Module):
                 )
                 continue
 
-            #avg_banchor = torch.zeros(1)
-            #tmatched_anchors = torch.zeros(1)
             if targets_per_image["boxes"].numel() != 0:
                 match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)
                 bmatched_idxs = self.proposal_matcher(match_quality_matrix)
                 bmatched_anchors = bmatched_idxs >= 0
-                #tmatched_anchors = bmatched_anchors
-                #avg_banchor = sum(bmatched_anchors) / targets_per_image["boxes"].shape[0]
             else:
                 match_quality_matrix = torch.tensor([], device=device)
                 bmatched_idxs = torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=device)
@@ -616,61 +541,29 @@ class RetinaNet(nn.Module):
             if targets_per_image['points'].numel() != 0:
 
                 pred_boxes = self.box_coder.decode_single(bbox_regression_per_image, anchors_per_image)
-
-                # assuming stochastic boxes are the samples of probability distribution between
-                # mu - n * sigma to mu + n * sigma
-                n = self.bbox_prior_coverage
-                pmatch_quality_matrix = torch.zeros(targets_per_image['points'].shape[0], anchors_per_image.shape[0],
-                                                    device=device)
-                xs = torch.linspace(-n, n, int(torch.ceil(torch.tensor(2 * n / self.bbox_prior_sampling_step, device=device))) + 1, device=device)
-                ws, hs = torch.meshgrid(xs, xs, indexing="ij")
-
                 st_boxes = torch.zeros(targets_per_image['points'].shape[0], 4, device=device)
                 for idx, (label, center) in enumerate(zip(targets_per_image['plabels'], targets_per_image['points'])):
 
                     if self.bbox_sampling == 'mean':
                         width_mu = self.bbox_priors['width_mean'][label]
                         height_mu = self.bbox_priors['height_mean'][label]
-                        width_std = self.bbox_priors['width_std'][label]
-                        height_std = self.bbox_priors['height_std'][label]
                     elif self.bbox_sampling == 'mode':
                         width_mu = self.bbox_priors['width_mode'][label]
                         height_mu = self.bbox_priors['height_mode'][label]
-                        width_std = self.bbox_priors['width_std'][label]
-                        height_std = self.bbox_priors['height_std'][label]
                     elif self.bbox_sampling == 'mean_IOU':
                         width_mu = self.bbox_priors['width_mean_IOU'][label]
                         height_mu = self.bbox_priors['height_mean_IOU'][label]
-                        width_std = self.bbox_priors['width_std'][label]
-                        height_std = self.bbox_priors['height_std'][label]
                     else:
                         print(f"{self.bbox_sampling} sampling method is not implemented!")
 
-                    x1 = center[0] - 0.5 * (width_mu + ws * width_std)
-                    x2 = center[0] + 0.5 * (width_mu + ws * width_std)
-                    y1 = center[1] - 0.5 * (height_mu + hs * height_std)
-                    y2 = center[1] + 0.5 * (height_mu + hs * height_std)
+                    x1 = center[0] - 0.5 * width_mu
+                    x2 = center[0] + 0.5 * width_mu
+                    y1 = center[1] - 0.5 * height_mu
+                    y2 = center[1] + 0.5 * height_mu
 
                     # create all stochastic boxes
                     stochastic_boxes = torch.stack([x1.flatten(), y1.flatten(), x2.flatten(), y2.flatten()], 1)
-
-                    if n != 0.0:
-                        if 0:
-                            # find all anchors lies inside the outermost stochastic box
-                            outer_box = stochastic_boxes[-1, :].reshape(1, -1)
-                            all_inner_matched_idx = self.proposal_matcher(utils.box_ioa(outer_box, anchors[0]))
-                            all_inner_anchors = anchors[0][all_inner_matched_idx >= 0]
-
-                            # compute IOU between stochastic boxes and anchors
-                            quality_matrix = box_ops.box_iou(stochastic_boxes, all_inner_anchors)
-
-                            # maximum over anchors: idea is to allocate one set of anchors for one point annotation irrespective of stochastic box
-                            quality_matrix = torch.max(quality_matrix, 0)[0]
-                            pmatch_quality_matrix[idx, all_inner_matched_idx >= 0] = quality_matrix.reshape(1, -1)
-                        else:
-                            st_boxes[idx, :] = stochastic_boxes[torch.randint(0, stochastic_boxes.shape[0], (1,))[0]]  # random op reproducible or not
-                    else:
-                        st_boxes[idx, :] = stochastic_boxes
+                    st_boxes[idx, :] = stochastic_boxes
 
                     # filtering: choose a fixed stochastic box or anchor as a stochastic box
                     # IOU between predicted box and stochastic box
@@ -684,13 +577,9 @@ class RetinaNet(nn.Module):
                         distance = torch.sum((pred_center - center) ** 2, 1)
                         sel_boxes_index = torch.argmax(torch.exp(-distance)*score)
                         st_boxes[idx, :] = sel_boxes[sel_boxes_index, :]
-                        print(f'predicted box is choosen! d:{distance[sel_boxes_index]}, s:{score[sel_boxes_index]}')
-                    else:
-                        print('mean-IOU box is choosen!')
-                #if n == 0.0:
+
                 targets[img_idx]['st_boxes'] = st_boxes     # store st boxes for box regression
                 pmatch_quality_matrix = box_ops.box_iou(st_boxes, anchors_per_image)
-
                 match_quality_matrix = torch.cat((match_quality_matrix, pmatch_quality_matrix))
                 bmatched_idxs = self.proposal_matcher(match_quality_matrix)
             else:  # clusters are considered only if point information is not available
@@ -711,9 +600,6 @@ class RetinaNet(nn.Module):
                 bmatched_idxs[mmatched_anchors] = -2
 
             matched_idxs.append(bmatched_idxs)
-
-            #avg_bpanchor = (torch.sum(bmatched_idxs >= 0) - torch.sum(tmatched_anchors))/ (targets_per_image["points"].shape[0])
-            #print(f'box avg. anchors: {avg_banchor}, box avg. anchors: {avg_bpanchor}')
 
         return self.head.compute_loss(targets, head_outputs, anchors, matched_idxs, self.epoch)
 

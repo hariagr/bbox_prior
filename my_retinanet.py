@@ -274,15 +274,24 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
+                    wh = anchors_per_image[idx_stbox, 2:4] - anchors_per_image[idx_stbox, 0:2]
                     alpha = self.alpha
                     if self.st_bbox_loss == 'l1':
-                        det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
-                                                        det_l1_loss_per_image[
-                                                            idx_stbox]
+                        beta = torch.stack(
+                            [1 + (self.alpha_ct / wh[:, 0]), 1 + (self.alpha_ct / wh[:, 1]),
+                             torch.ones(wh[:, 0].size()), torch.ones(wh[:, 0].size())])
+                        det_loss_per_image[idx_stbox] = (alpha / beta.T) * det_l2_loss_per_image[idx_stbox]
+                        #det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
+                        #                                det_l1_loss_per_image[
+                        #                                    idx_stbox]
                     elif self.st_bbox_loss == 'l2':
-                        det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
-                                                        det_l2_loss_per_image[
-                                                            idx_stbox]
+                        beta = torch.stack(
+                            [1 + ((self.alpha_ct ** 2) / (wh[:, 0] ** 2)), 1 + ((self.alpha_ct ** 2) / (wh[:, 1] ** 2)),
+                             torch.ones(wh[:, 0].size()), torch.ones(wh[:, 0].size())])
+                        det_loss_per_image[idx_stbox] = (alpha / beta.T) * det_l2_loss_per_image[idx_stbox]
+                        #det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
+                        #                                det_l2_loss_per_image[
+                        #                                   idx_stbox]
 
             elif self.gt_bbox_loss == 'smooth_l1' and self.st_bbox_loss == 'smooth_l1':
                 det_loss_per_image = torch.zeros(bbox_regression_per_image.shape, device=device)

@@ -279,7 +279,7 @@ class RetinaNetRegressionHead(nn.Module):
                     if self.st_bbox_loss == 'l1':
                         beta = torch.stack(
                             [1 + (self.alpha_ct / wh[:, 0]), 1 + (self.alpha_ct / wh[:, 1]),
-                             torch.ones(wh[:, 0].size()), torch.ones(wh[:, 0].size())])
+                             torch.ones(wh[:, 0].size(), device=device), torch.ones(wh[:, 0].size(), device=device)])
                         det_loss_per_image[idx_stbox] = (alpha / beta.T) * det_l2_loss_per_image[idx_stbox]
                         #det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
                         #                                det_l1_loss_per_image[

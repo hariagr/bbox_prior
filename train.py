@@ -40,6 +40,7 @@ from bbox_priors import cal_bbox_priors
 from cal_bbox_prior_hp import cal_bbox_prior_hp
 from draw_det import draw_det
 from gen_pseudobox import gen_box_from_point
+from PIL import Image
 
 import platform
 
@@ -304,11 +305,12 @@ def main(args):
     else:
         bl_weights = (1/num_classes)*torch.ones(num_classes).to(device)
 
+    image = Image.open(dataset.image_folder + dataset.image_names[0])
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights,
               "alpha_ct": args.alpha_ct, "alpha": args.alpha, "exp_tc": args.exp_tc,
               "bbox_sampling": args.bbox_sampling, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step,
-              "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss} #, 'min_size': 480, 'max_size': 640}
+              "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss, 'min_size': min([image.width, image.height]), 'max_size': max([image.width, image.height])}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)
 

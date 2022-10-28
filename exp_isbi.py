@@ -6,7 +6,7 @@ import numpy as np
 def get_args_parser(add_help=True):
     import argparse
 
-    parser = argparse.ArgumentParser(description="PyTorch Detection Training", add_help=add_help)
+    parser = argparse.ArgumentParser(description="", add_help=add_help)
 
     parser.add_argument(
         "-j", "--workers", default=16, type=int, metavar="N", help="number of data loading workers (default: 4)"
@@ -21,6 +21,7 @@ def get_args_parser(add_help=True):
                         action="store_true")
     parser.add_argument("--tune-bbp-coverage", dest="tune_bbp_coverage", help="", action="store_true")
     parser.add_argument("--tune-alpha", dest="tune_alpha", help="", action="store_true")
+    parser.add_argument("--mean-or-meanIOU", dest="mean_or_meanIOU", help="", action="store_true")
     parser.add_argument("--prefix", default='usd', type=str, help="prefix for training files")
     parser.add_argument(
         "-b", "--batch-size", default=8, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -79,6 +80,31 @@ def tune_alpha(args):
                     print(f"config: {config}, batch_size: {args.batch_size}, training time/epoch: {training_time / args.epochs}")
 
 
+def mean_or_meanIOU(args):
+    prefix = args.prefix
+    bbox_samplings = ['mean', 'mean-IOU']
+
+    wlimages = np.array([20])
+    ptimages = 100 - wlimages
+
+    for bbox_sampling in bbox_samplings:
+        for wl, pt in zip(wlimages, ptimages):
+            wl_file = prefix + '_wl' + str(wl) + '.csv'
+            pt_file = prefix + '_pt' + str(pt) + '.csv'
+            config = prefix + '_wl' + str(wl) + '_pt' + str(pt) + '_' + str(bbox_sampling)
+            args = ['--data-path', args.data_path, '--train-file', wl_file, '--train-points-file', pt_file,
+                    '--results-dir', args.results_dir, '--config', config,
+                    '--gt-bbox-loss', args.gt_bbox_loss, '--st-bbox-loss', args.st_bbox_loss,
+                    '--workers', str(args.workers), '--batch-size', str(args.batch_size),
+                    '--epoch', str(args.epochs), '--lr', str(args.lr), '--beta', str(args.beta),
+                    '--amp', '--device', args.device, '--eval-freq', str(args.eval_freq),
+                    '--alpha-ct', str(0.0), '--bbox-sampling', bbox_sampling]
+            old_sys_argv = sys.argv
+            sys.argv = [old_sys_argv[0]] + args
+            args = trainfunc_args_parser().parse_args()
+            training_time = trainfunc(args)
+            print(f"config: {config}, batch_size: {args.batch_size}, training time/epoch: {training_time / args.epochs}")
+
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
     print(args)
@@ -89,10 +115,13 @@ if __name__ == "__main__":
     args.st_bbox_loss = 'l2'
     args.lr = 0.01
     args.epochs = 50
-    args.eval_freq = args.epochs
+    args.eval_freq = 10
 
     if args.baseline:
         baseline(args)
 
     if args.tune_alpha:
         tune_alpha(args)
+
+    if args.mean_or_meanIOU:
+        mean_or_meanIOU(args)

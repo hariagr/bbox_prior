@@ -123,6 +123,6 @@ def cal_mean_IOU_box(df):
     bounds = np.array([[lb[0], ub[0]], [lb[1], ub[1]]])
     res = minimizeCompass(obj, x0=mu, bounds=bounds, deltatol=1e-6, paired=False, errorcontrol=False, disp=False)
 
-    print(f"x0: {mu}, x*: {res.x}")
+    print(f"x0: {mu}, x*: {res.x}, d: {np.linalg.norm(mu-res.x)}")
 
     return res.x

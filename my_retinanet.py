@@ -459,7 +459,8 @@ class RetinaNet(nn.Module):
         bbp_coverage=0.0,
         bbp_sampling_step=0.5,
         gt_bbox_loss='l1',
-        st_bbox_loss='l2'
+        st_bbox_loss='l2',
+        tauc=0.2
     ):
         super().__init__()
         _log_api_usage_once(self)
@@ -513,6 +514,7 @@ class RetinaNet(nn.Module):
         self.bbox_sampling = bbox_sampling
         self.bbox_prior_coverage = bbp_coverage
         self.bbox_prior_sampling_step = bbp_sampling_step
+        self.tauc = tauc
 
     @torch.jit.unused
     def eager_outputs(self, losses, detections):
@@ -578,7 +580,7 @@ class RetinaNet(nn.Module):
                     # IOU between predicted box and stochastic box
                     iou = box_ops.box_iou(st_boxes[idx, :].reshape(1, -1), pred_boxes)
                     score = cls_scores_per_image[:, label].reshape(1, -1)
-                    credible_box_indx = torch.where((iou >= 0.5) & (score >= 0.2))[1]
+                    credible_box_indx = torch.where((iou >= 0.5) & (score >= self.tauc))[1]
                     if credible_box_indx.numel() > 0:
                         sel_boxes = pred_boxes[credible_box_indx, :]
                         score = score[0, credible_box_indx]

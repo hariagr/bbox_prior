@@ -221,6 +221,7 @@ def get_args_parser(add_help=True):
     #argprof
     parser.add_argument("--DLprof", action="store_true", help="flag to run profiling")
     parser.add_argument("--tune-bbox-coverage", action="store_true", help="tune bbox coverage based on a region matching algorithm")
+    parser.add_argument("--tauc", default=0.2, type=float, help="score threshold for selecting box for a point")
 
     return parser
 
@@ -309,7 +310,7 @@ def main(args):
     print("Creating model")
     kwargs = {"trainable_backbone_layers": args.trainable_backbone_layers, "bl_weights": bl_weights,
               "alpha_ct": args.alpha_ct, "alpha": args.alpha, "exp_tc": args.exp_tc,
-              "bbox_sampling": args.bbox_sampling, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step,
+              "bbox_sampling": args.bbox_sampling, "bbp_coverage": args.bbp_coverage, "bbp_sampling_step": args.bbp_sampling_step, "tauc": args.tauc,
               "gt_bbox_loss": args.gt_bbox_loss, "st_bbox_loss": args.st_bbox_loss, 'min_size': min([image.width, image.height]), 'max_size': max([image.width, image.height])}
     model = retinanet_resnet50_fpn(pretrained=args.pretrained, num_classes=num_classes, freeze_bn=args.freeze_bn, **kwargs)
     model.to(device)

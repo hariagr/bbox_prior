@@ -24,6 +24,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--tune-alpha", dest="tune_alpha", help="", action="store_true")
     parser.add_argument("--mean-or-meanIOU", dest="mean_or_meanIOU", help="", action="store_true")
     parser.add_argument("--tune-tauc", dest="tune_tauc", help="", action="store_true")
+    parser.add_argument("--tune-tauiou", dest="tune_tauiou", help="", action="store_true")
     parser.add_argument("--prefix", default='usd', type=str, help="prefix for training files")
     parser.add_argument(
         "-b", "--batch-size", default=8, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -140,6 +141,34 @@ def tune_tauc(args):
             print(
                 f"config: {config}, batch_size: {args.batch_size}, training time/epoch: {training_time / args.epochs}")
 
+def tune_tauiou(args):
+    prefix = args.prefix
+    bbox_sampling = 'mean_IOU'
+
+    wlimages = np.array([10])
+    ptimages = 100 - wlimages
+
+    taus = np.array([0.7, 0.6, 0.5])
+    for tau in taus:
+        for wl, pt in zip(wlimages, ptimages):
+            wl_file = prefix + '_wl' + str(wl) + '.csv'
+            pt_file = prefix + '_pt' + str(pt) + '.csv'
+            config = prefix + '_wl' + str(wl) + '_pt' + str(pt) + '_tauiou' + str(tau)
+            args = ['--data-path', args.data_path, '--train-file', wl_file, '--train-points-file', pt_file,
+                    '--results-dir', args.results_dir, '--config', config,
+                    '--gt-bbox-loss', args.gt_bbox_loss, '--st-bbox-loss', args.st_bbox_loss,
+                    '--workers', str(args.workers), '--batch-size', str(args.batch_size),
+                    '--epoch', str(args.epochs), '--lr', str(args.lr), '--beta', str(args.beta),
+                    '--amp', '--device', args.device, '--eval-freq', str(args.eval_freq),
+                    '--alpha-ct', str(0.0), '--bbox-sampling', bbox_sampling, '--random-seed', str(args.random_seed),
+                    '--tauc', str(0.2), '--tauiou', str(tau)]
+            old_sys_argv = sys.argv
+            sys.argv = [old_sys_argv[0]] + args
+            args = trainfunc_args_parser().parse_args()
+            training_time = trainfunc(args)
+            print(
+                f"config: {config}, batch_size: {args.batch_size}, training time/epoch: {training_time / args.epochs}")
+
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
     print(args)
@@ -164,3 +193,6 @@ if __name__ == "__main__":
 
     if args.tune_tauc:
         tune_tauc(args)
+
+    if args.tune_tauiou:
+        tune_tauiou(args)

@@ -215,13 +215,17 @@ class RetinaNetRegressionHead(nn.Module):
                     y2 = center[1] + 0.5 * torch.exp(self.bbox_priors['logOfheight_mean'][label])
                     stochastic_box[indx] = torch.tensor([x1, y1, x2, y2], device=device).reshape(1, -1)
                     idx_stbox[indx] = label
+
+                    width_mu = self.bbox_priors['width_mean'][label]
+                    height_mu = self.bbox_priors['height_mean'][label]
+                    sq_area = torch.sqrt(width_mu*height_mu)
                     if not self.cal_tnorm_weights:
                         if self.st_bbox_loss == 'l1':
                             beta_stbox[indx] = torch.tensor(
-                                [1 + self.alpha_ct, 1 + self.alpha_ct, 1, 1], device=device).reshape(1, -1)
+                                [1 + self.alpha_ct/sq_area, 1 + self.alpha_ct/sq_area, 1, 1], device=device).reshape(1, -1)
                         elif self.st_bbox_loss == 'l2':
                             beta_stbox[indx] = torch.tensor(
-                                [1 + self.alpha_ct**2, 1 + self.alpha_ct**2, 1, 1], device=device).reshape(1, -1)
+                                [1 + (self.alpha_ct**2)/(sq_area**2), 1 + (self.alpha_ct**2)/(sq_area**2), 1, 1], device=device).reshape(1, -1)
                     else:
                         beta_stbox[indx] = torch.tensor([1, 1, 1, 1], device=device).reshape(1, -1)
 
@@ -274,24 +278,16 @@ class RetinaNetRegressionHead(nn.Module):
 
                 if targets_per_image['points'].numel() != 0:
                     idx_stbox = torch.where(idx_per_image >= 0)[0]
-                    wh = anchors_per_image[idx_stbox, 2:4] - anchors_per_image[idx_stbox, 0:2]
+                    #wh = anchors_per_image[idx_stbox, 2:4] - anchors_per_image[idx_stbox, 0:2]
                     alpha = self.alpha
                     if self.st_bbox_loss == 'l1':
-                        beta = torch.stack(
-                            [1 + (self.alpha_ct / wh[:, 0]), 1 + (self.alpha_ct / wh[:, 1]),
-                             torch.ones(wh[:, 0].size(), device=device), torch.ones(wh[:, 0].size(), device=device)])
-                        det_loss_per_image[idx_stbox] = (alpha / beta.T) * det_l2_loss_per_image[idx_stbox]
-                        #det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
-                        #                                det_l1_loss_per_image[
-                        #                                    idx_stbox]
+                        det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
+                                                        det_l1_loss_per_image[
+                                                            idx_stbox]
                     elif self.st_bbox_loss == 'l2':
-                        beta = torch.stack(
-                            [1 + ((self.alpha_ct ** 2) / (wh[:, 0] ** 2)), 1 + ((self.alpha_ct ** 2) / (wh[:, 1] ** 2)),
-                             torch.ones(wh[:, 0].size(), device=device), torch.ones(wh[:, 0].size(), device=device)])
-                        det_loss_per_image[idx_stbox] = (alpha / beta.T) * det_l2_loss_per_image[idx_stbox]
-                        #det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
-                        #                                det_l2_loss_per_image[
-                        #                                   idx_stbox]
+                        det_loss_per_image[idx_stbox] = alpha * (1 / beta_per_image[idx_stbox]) * \
+                                                        det_l2_loss_per_image[
+                                                           idx_stbox]
 
             elif self.gt_bbox_loss == 'smooth_l1' and self.st_bbox_loss == 'smooth_l1':
                 det_loss_per_image = torch.zeros(bbox_regression_per_image.shape, device=device)

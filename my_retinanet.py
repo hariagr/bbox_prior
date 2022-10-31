@@ -582,7 +582,11 @@ class RetinaNet(nn.Module):
                     # IOU between predicted box and stochastic box
                     iou = box_ops.box_iou(st_boxes[idx, :].reshape(1, -1), pred_boxes)
                     score = cls_scores_per_image[:, label].reshape(1, -1)
-                    credible_box_indx = torch.where((iou >= self.tauiou) & (score >= self.tauc))[1]
+                    if self.tauiou == -1:
+                        tauiou = self.bbox_priors['mean_IOU'][label]
+                    else:
+                        tauiou = self.tauiou
+                    credible_box_indx = torch.where((iou >= tauiou) & (score >= self.tauc))[1]
                     if credible_box_indx.numel() > 0:
                         sel_boxes = pred_boxes[credible_box_indx, :]
                         score = score[0, credible_box_indx]

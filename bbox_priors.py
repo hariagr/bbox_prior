@@ -49,6 +49,7 @@ def cal_bbox_priors(model, dataloader, device):
                    "height_mode": torch.zeros(num_classes, dtype=torch.float32),
                    "width_mean_IOU": torch.zeros(num_classes, dtype=torch.float32),
                    "height_mean_IOU": torch.zeros(num_classes, dtype=torch.float32),
+                   "mean_IOU": torch.zeros(num_classes, dtype=torch.float32),
                    }
 
     for idx, df_grp in gdf:
@@ -67,9 +68,10 @@ def cal_bbox_priors(model, dataloader, device):
         bbox_priors["width_mode"][idx] = torch.as_tensor(cal_mode(df_grp['width']), dtype=torch.float32)
         bbox_priors["height_mode"][idx] = torch.as_tensor(cal_mode(df_grp['height']), dtype=torch.float32)
 
-        bbox = cal_mean_IOU_box(df_grp)
+        bbox, mean_IOU = cal_mean_IOU_box(df_grp)
         bbox_priors["width_mean_IOU"][idx] = torch.as_tensor(bbox[0], dtype=torch.float32)
         bbox_priors["height_mean_IOU"][idx] = torch.as_tensor(bbox[1], dtype=torch.float32)
+        bbox_priors["mean_IOU"][idx] = torch.as_tensor(mean_IOU, dtype=torch.float32)
 
     model.bbox_priors = bbox_priors
     model.head.bbox_priors = bbox_priors
@@ -96,7 +98,7 @@ def cal_mean_IOU_box(df):
     def cal_loss(x, bboxa, prob):
         bboxb = torch.tensor([-0.5 * x[0], -0.5 * x[1], 0.5 * x[0], 0.5 * x[1]]).reshape(-1, 1)
         iou = box_ops.box_iou(bboxa.T, bboxb.T)
-        L = - (1 / bboxa.shape[1]) * np.sum(np.multiply(iou.numpy().flatten(), prob.flatten()))
+        L = - (1 / np.sum(prob.flatten())) * np.sum(np.multiply(iou.numpy().flatten(), prob.flatten()))
         return L
 
     num_points = 100
@@ -123,6 +125,6 @@ def cal_mean_IOU_box(df):
     bounds = np.array([[lb[0], ub[0]], [lb[1], ub[1]]])
     res = minimizeCompass(obj, x0=mu, bounds=bounds, deltatol=1e-6, paired=False, errorcontrol=False, disp=False)
 
-    print(f"x0: {mu}, x*: {res.x}, d: {np.linalg.norm(mu-res.x)}")
+    print(f"x0: {mu}, x*: {res.x}, d: {np.linalg.norm(mu-res.x)}, mean-IOU:{-res.fun}")
 
-    return res.x
+    return res.x, -res.fun

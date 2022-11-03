@@ -268,7 +268,8 @@ class RetinaNetRegressionHead(nn.Module):
             if self.gt_bbox_loss == 'l1' or self.gt_bbox_loss == 'l2' or self.st_bbox_loss == 'l1' or self.st_bbox_loss == 'l2':
                 det_l1_loss_per_image = torch.nn.functional.l1_loss(bbox_regression_per_image, target_regression,
                                                                     size_average=False, reduce=False, reduction='none')
-                det_l2_loss_per_image = torch.nn.functional.mse_loss(bbox_regression_per_image, target_regression,
+                if self.gt_bbox_loss == 'l2' or self.st_bbox_loss == 'l2':
+                    det_l2_loss_per_image = torch.nn.functional.mse_loss(bbox_regression_per_image, target_regression,
                                                                      size_average=False, reduce=False, reduction='none')
                 # considering beta is one for deterministic boxes
                 if self.gt_bbox_loss == 'l1':

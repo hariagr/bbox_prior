@@ -66,7 +66,7 @@ def draw_det(model, data_loader, device='cpu', folder=''):
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        if 1: #torch.sum(torch.isin(targets[0]['labels'], )) > 0:
+        if 1: #torch.sum(torch.isin(targets[0]['labels'], data_loader.dataset.classes['mycete'])) > 0:
             detections = model(images)
             if 0:
                 images, targets = model.transform(images, targets)
@@ -81,5 +81,5 @@ def draw_det(model, data_loader, device='cpu', folder=''):
             targets = [{k: v.numpy() for k, v in t.items()} for t in targets]
 
             for image, target, detection in zip(images, targets, detections):
-                draw_boxes(image, target, detection, data_loader, folder, score_thr=0.2)
+                draw_boxes(image, target, detection, data_loader, folder, score_thr=0.1)
 

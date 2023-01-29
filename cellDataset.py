@@ -80,7 +80,8 @@ class CSVDataset(Dataset):
             print("counts of ground truth boxes:")
             num_of_boxes = np.zeros(self.num_classes(), dtype=int)
             for key, value in train_cell_count.items():
-                num_of_boxes[self.classes[key]] = value
+                if key != 'missedlabel':
+                    num_of_boxes[self.classes[key]] = value
                 print("%s: %d" % (key, value))
         else:
             num_of_boxes = np.zeros(self.num_classes(), dtype=int)

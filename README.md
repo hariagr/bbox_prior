@@ -4,7 +4,7 @@ This is the PyTorch based code for the paper "Bounding Box Priors for Cell Detec
 
 The paper proposes a weakly semi-supervised machine learning algorithm to detect objects with point annotations.
 
-# Example code for training
+# Training
 !python train.py --train-file train.csv\
   --workers 16 --batch-size 2 --epoch 50 --lr 0.01 --beta 0.99 --eval-freq 50\
   --device cuda --amp --balance\

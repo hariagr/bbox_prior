@@ -1,6 +1,6 @@
 # Object Detection with Point Annotations
 
-This is the PyTorch based code for the paper "Bounding Box Priors for Cell Detection with Point Annotations"{https://arxiv.org/abs/2211.06104}.
+This is the PyTorch based code for the paper "Bounding Box Priors for Cell Detection with Point Annotations" https://arxiv.org/abs/2211.06104.
 
 The paper proposes a weakly semi-supervised machine learning algorithm to detect objects with point annotations.
 
